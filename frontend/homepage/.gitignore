@@ -1,0 +1,12 @@
+node_modules/
+dist/
+build/
+.cache/
+.env*
+.vite/
+vite.config.*.timestamp-*
+*.tsbuildinfo
+*-debug.log*
+.claude-replay.*
+__figma__entrypoint__.ts
+.tmp-*

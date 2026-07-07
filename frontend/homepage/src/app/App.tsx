@@ -1,0 +1,650 @@
+import { useState } from "react";
+import {
+  User,
+  BarChart2,
+  Zap,
+  Map,
+  Bookmark,
+  CheckCircle2,
+  ArrowRight,
+  Star,
+  ChevronRight,
+  Brain,
+  Sparkles,
+  Target,
+  TrendingUp,
+  Menu,
+  X,
+} from "lucide-react";
+
+const NAV_LINKS = ["Home", "How It Works", "Opportunities", "Roadmap", "About"];
+
+function Nav() {
+  const [open, setOpen] = useState(false);
+  return (
+    <header className="sticky top-0 z-50 w-full bg-white/80 backdrop-blur-md border-b border-border">
+      <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-sm">
+            <Sparkles className="w-4 h-4 text-white" />
+          </div>
+          <span
+            className="text-xl font-extrabold tracking-tight"
+            style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", color: "#0b1a15" }}
+          >
+            Skill<span className="text-emerald-600">+</span>
+          </span>
+        </div>
+
+        <nav className="hidden md:flex items-center gap-8">
+          {NAV_LINKS.map((link) => (
+            <a
+              key={link}
+              href="#"
+              className="text-sm font-medium text-gray-600 hover:text-emerald-600 transition-colors"
+              style={{ fontFamily: "'Inter', sans-serif" }}
+            >
+              {link}
+            </a>
+          ))}
+        </nav>
+
+        <div className="hidden md:flex items-center gap-3">
+          <button className="text-sm font-semibold text-emerald-600 hover:text-emerald-700 transition-colors px-3 py-1.5">
+            Log In
+          </button>
+          <button className="text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-700 transition-colors px-4 py-2 rounded-full shadow-sm">
+            Sign Up
+          </button>
+        </div>
+
+        <button
+          className="md:hidden text-gray-600 hover:text-emerald-600 transition-colors"
+          onClick={() => setOpen(!open)}
+        >
+          {open ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+        </button>
+      </div>
+
+      {open && (
+        <div className="md:hidden bg-white border-t border-border px-6 py-4 flex flex-col gap-4">
+          {NAV_LINKS.map((link) => (
+            <a key={link} href="#" className="text-sm font-medium text-gray-700">
+              {link}
+            </a>
+          ))}
+          <button className="text-sm font-semibold text-white bg-emerald-600 rounded-full px-4 py-2 w-fit">
+            Sign Up
+          </button>
+        </div>
+      )}
+    </header>
+  );
+}
+
+function Hero() {
+  return (
+    <section className="relative overflow-hidden pt-24 pb-28 px-6">
+      {/* Background blobs */}
+      <div
+        className="absolute -top-32 -left-32 w-[520px] h-[520px] rounded-full opacity-20 blur-3xl pointer-events-none"
+        style={{ background: "radial-gradient(circle, #059669, transparent 70%)" }}
+      />
+      <div
+        className="absolute -bottom-24 right-0 w-[420px] h-[420px] rounded-full opacity-15 blur-3xl pointer-events-none"
+        style={{ background: "radial-gradient(circle, #0d9488, transparent 70%)" }}
+      />
+
+      <div className="relative max-w-4xl mx-auto text-center">
+        <div className="inline-flex items-center gap-2 bg-emerald-50 border border-emerald-100 text-emerald-600 text-xs font-semibold uppercase tracking-wider px-4 py-2 rounded-full mb-8">
+          <Brain className="w-3.5 h-3.5" />
+          AI-Powered Career Guidance for Students
+        </div>
+
+        <h1
+          className="text-5xl md:text-6xl lg:text-7xl font-extrabold leading-tight tracking-tight mb-6"
+          style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", color: "#0f0f1a" }}
+        >
+          Find opportunities that{" "}
+          <span
+            className="relative inline-block"
+            style={{
+              background: "linear-gradient(135deg, #059669 0%, #0d9488 100%)",
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent",
+            }}
+          >
+            actually fit
+          </span>{" "}
+          your level.
+        </h1>
+
+        <p
+          className="text-lg md:text-xl text-gray-500 max-w-2xl mx-auto mb-10 leading-relaxed"
+          style={{ fontFamily: "'Inter', sans-serif" }}
+        >
+          Skill+ analyzes your profile and recommends realistic opportunities, explains why they
+          fit, shows missing skills, and gives you a clear roadmap.
+        </p>
+
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+          <button
+            className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-base px-7 py-3.5 rounded-full shadow-lg shadow-emerald-200 transition-all hover:shadow-emerald-300 hover:-translate-y-0.5"
+            style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+          >
+            Get Started
+            <ArrowRight className="w-4 h-4" />
+          </button>
+          <button
+            className="inline-flex items-center gap-2 bg-white text-gray-700 font-semibold text-base px-7 py-3.5 rounded-full border border-gray-200 hover:border-emerald-300 hover:text-emerald-600 transition-all shadow-sm"
+            style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+          >
+            View Demo
+            <ChevronRight className="w-4 h-4" />
+          </button>
+        </div>
+
+        <div className="mt-14 flex flex-wrap items-center justify-center gap-6 text-sm text-gray-500">
+          {["2,400+ students matched", "95% fit accuracy", "Free for students"].map((stat) => (
+            <div key={stat} className="flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+              <span style={{ fontFamily: "'Inter', sans-serif" }}>{stat}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+const STEPS = [
+  {
+    number: "01",
+    icon: User,
+    title: "Create your profile",
+    desc: "Tell us your year, courses, skills, interests, and how many hours per week you can dedicate.",
+  },
+  {
+    number: "02",
+    icon: BarChart2,
+    title: "Get your level analyzed",
+    desc: "Our AI maps your profile against thousands of real opportunities to determine your readiness.",
+  },
+  {
+    number: "03",
+    icon: Target,
+    title: "Receive matched opportunities",
+    desc: "Browse recommendations ranked by fit score with clear explanations of why each one suits you.",
+  },
+  {
+    number: "04",
+    icon: Map,
+    title: "Follow your roadmap",
+    desc: "Get a personalized step-by-step plan to close skill gaps and reach your career goals.",
+  },
+];
+
+function HowItWorks() {
+  return (
+    <section className="py-24 px-6 bg-white">
+      <div className="max-w-7xl mx-auto">
+        <div className="text-center mb-16">
+          <p
+            className="text-emerald-600 font-semibold text-sm uppercase tracking-widest mb-3"
+            style={{ fontFamily: "'Inter', sans-serif" }}
+          >
+            The Process
+          </p>
+          <h2
+            className="text-4xl md:text-5xl font-extrabold tracking-tight text-gray-900"
+            style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+          >
+            How Skill+ Works
+          </h2>
+          <p
+            className="text-gray-500 mt-4 max-w-xl mx-auto text-lg"
+            style={{ fontFamily: "'Inter', sans-serif" }}
+          >
+            Four simple steps from profile to opportunity — all powered by AI.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {STEPS.map((step, i) => (
+            <div
+              key={i}
+              className="relative bg-gradient-to-b from-emerald-50/60 to-white border border-emerald-100 rounded-2xl p-7 flex flex-col gap-4 hover:shadow-lg hover:shadow-emerald-100 transition-all hover:-translate-y-1"
+            >
+              <div className="flex items-start justify-between">
+                <div className="w-11 h-11 rounded-xl bg-emerald-600 flex items-center justify-center shadow-sm shadow-emerald-300">
+                  <step.icon className="w-5 h-5 text-white" />
+                </div>
+                <span
+                  className="text-4xl font-extrabold text-emerald-100 select-none"
+                  style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+                >
+                  {step.number}
+                </span>
+              </div>
+              <h3
+                className="text-lg font-bold text-gray-900"
+                style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+              >
+                {step.title}
+              </h3>
+              <p
+                className="text-sm text-gray-500 leading-relaxed"
+                style={{ fontFamily: "'Inter', sans-serif" }}
+              >
+                {step.desc}
+              </p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+const FEATURES = [
+  {
+    icon: User,
+    color: "from-emerald-500 to-teal-600",
+    bg: "bg-emerald-50",
+    title: "Student Profile Analysis",
+    desc: "We consider your year, courses, GPA, skills, time availability, and career goals to build a complete academic snapshot.",
+  },
+  {
+    icon: Star,
+    color: "from-teal-500 to-cyan-600",
+    bg: "bg-teal-50",
+    title: "Fit Score",
+    desc: "Every opportunity gets a percentage fit score based on how closely it matches your current level and skill set.",
+  },
+  {
+    icon: TrendingUp,
+    color: "from-green-500 to-emerald-600",
+    bg: "bg-green-50",
+    title: "Skill Gap Analysis",
+    desc: "See exactly which skills you still need to acquire and get specific resources to learn them before applying.",
+  },
+  {
+    icon: Brain,
+    color: "from-teal-500 to-emerald-600",
+    bg: "bg-teal-50",
+    title: "AI Roadmap",
+    desc: "A personalized, time-aware plan that takes into account your semester schedule and career timeline.",
+  },
+  {
+    icon: Bookmark,
+    color: "from-cyan-500 to-teal-500",
+    bg: "bg-cyan-50",
+    title: "Saved Opportunities",
+    desc: "Bookmark projects, internships, hackathons, and more. Track application status and deadlines in one place.",
+  },
+];
+
+function Features() {
+  return (
+    <section className="py-24 px-6" style={{ background: "#f8f9ff" }}>
+      <div className="max-w-7xl mx-auto">
+        <div className="text-center mb-16">
+          <p
+            className="text-teal-600 font-semibold text-sm uppercase tracking-widest mb-3"
+            style={{ fontFamily: "'Inter', sans-serif" }}
+          >
+            Platform Features
+          </p>
+          <h2
+            className="text-4xl md:text-5xl font-extrabold tracking-tight text-gray-900"
+            style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+          >
+            Everything you need to grow
+          </h2>
+          <p
+            className="text-gray-500 mt-4 max-w-xl mx-auto text-lg"
+            style={{ fontFamily: "'Inter', sans-serif" }}
+          >
+            Purpose-built tools to guide engineering students at every stage of their career journey.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {FEATURES.map((f, i) => (
+            <div
+              key={i}
+              className={`bg-white border border-border rounded-2xl p-7 flex flex-col gap-4 hover:shadow-xl hover:shadow-emerald-100/50 transition-all hover:-translate-y-1 ${
+                i === 4 ? "md:col-span-2 lg:col-span-1" : ""
+              }`}
+            >
+              <div
+                className={`w-12 h-12 rounded-xl ${f.bg} flex items-center justify-center`}
+              >
+                <div
+                  className={`w-8 h-8 rounded-lg bg-gradient-to-br ${f.color} flex items-center justify-center`}
+                >
+                  <f.icon className="w-4 h-4 text-white" />
+                </div>
+              </div>
+              <h3
+                className="text-lg font-bold text-gray-900"
+                style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+              >
+                {f.title}
+              </h3>
+              <p
+                className="text-sm text-gray-500 leading-relaxed"
+                style={{ fontFamily: "'Inter', sans-serif" }}
+              >
+                {f.desc}
+              </p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function RecommendationCard() {
+  return (
+    <section className="py-24 px-6 bg-white">
+      <div className="max-w-7xl mx-auto">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+          <div>
+            <p
+              className="text-emerald-600 font-semibold text-sm uppercase tracking-widest mb-3"
+              style={{ fontFamily: "'Inter', sans-serif" }}
+            >
+              Live Example
+            </p>
+            <h2
+              className="text-4xl md:text-5xl font-extrabold tracking-tight text-gray-900 mb-5"
+              style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+            >
+              See a real recommendation in action
+            </h2>
+            <p
+              className="text-gray-500 text-lg leading-relaxed mb-8"
+              style={{ fontFamily: "'Inter', sans-serif" }}
+            >
+              Skill+ explains every recommendation in plain language — no black boxes. You always
+              know exactly why an opportunity was suggested and what to do next.
+            </p>
+            <div className="flex flex-col gap-4">
+              {[
+                "Tailored to your exact skill level",
+                "Missing skills clearly highlighted",
+                "AI explains the fit in plain English",
+              ].map((point) => (
+                <div key={point} className="flex items-center gap-3">
+                  <div className="w-5 h-5 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                  </div>
+                  <span
+                    className="text-gray-700 text-sm font-medium"
+                    style={{ fontFamily: "'Inter', sans-serif" }}
+                  >
+                    {point}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* The sample card */}
+          <div className="relative">
+            <div
+              className="absolute inset-0 rounded-3xl blur-2xl opacity-20 pointer-events-none"
+              style={{ background: "linear-gradient(135deg, #059669, #0d9488)" }}
+            />
+            <div className="relative bg-white border border-emerald-100 rounded-2xl shadow-xl shadow-emerald-100 overflow-hidden">
+              {/* Card header */}
+              <div className="bg-gradient-to-r from-emerald-600 to-teal-600 px-6 py-5">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <span className="text-indigo-200 text-xs font-semibold uppercase tracking-widest">
+                      Project Opportunity
+                    </span>
+                    <h3
+                      className="text-white text-xl font-bold mt-1"
+                      style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+                    >
+                      Beginner Web Development Project
+                    </h3>
+                    <p className="text-indigo-200 text-sm mt-1">
+                      Personal Portfolio with React · 4–6 weeks · Remote
+                    </p>
+                  </div>
+                  <div className="flex flex-col items-center bg-white/20 rounded-xl px-3 py-2 backdrop-blur-sm flex-shrink-0 ml-4">
+                    <span className="text-white font-extrabold text-2xl leading-none">92%</span>
+                    <span className="text-indigo-200 text-xs font-medium">match</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Card body */}
+              <div className="px-6 py-5 flex flex-col gap-5">
+                {/* Why this fits */}
+                <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Zap className="w-4 h-4 text-emerald-600" />
+                    <span
+                      className="text-emerald-700 text-xs font-bold uppercase tracking-wider"
+                      style={{ fontFamily: "'Inter', sans-serif" }}
+                    >
+                      Why this fits you
+                    </span>
+                  </div>
+                  <p
+                    className="text-gray-600 text-sm leading-relaxed"
+                    style={{ fontFamily: "'Inter', sans-serif" }}
+                  >
+                    You've completed CS101 and have basic HTML/CSS experience. This project matches
+                    your current level and aligns with your goal of landing a frontend internship by
+                    next semester.
+                  </p>
+                </div>
+
+                {/* Skills */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p
+                      className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2"
+                      style={{ fontFamily: "'Inter', sans-serif" }}
+                    >
+                      Required skills
+                    </p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {["HTML/CSS", "JavaScript", "Git"].map((s) => (
+                        <span
+                          key={s}
+                          className="text-xs font-medium bg-green-50 text-green-700 border border-green-200 rounded-full px-2.5 py-1"
+                        >
+                          ✓ {s}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <p
+                      className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2"
+                      style={{ fontFamily: "'Inter', sans-serif" }}
+                    >
+                      Missing skills
+                    </p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {["React basics", "npm"].map((s) => (
+                        <span
+                          key={s}
+                          className="text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200 rounded-full px-2.5 py-1"
+                        >
+                          + {s}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Action */}
+                <button className="w-full text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-700 transition-colors rounded-full py-3 flex items-center justify-center gap-2">
+                  View Opportunity
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            {/* Floating badge */}
+            <div className="absolute -bottom-4 -right-4 bg-white border border-emerald-100 shadow-lg rounded-xl px-4 py-3 flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+              <span
+                className="text-xs font-semibold text-gray-700"
+                style={{ fontFamily: "'Inter', sans-serif" }}
+              >
+                147 matches found for your profile
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+const OPPORTUNITY_TYPES = [
+  "Projects", "Internships", "Workshops", "Bootcamps",
+  "Hackathons", "Competitions", "Mentorships", "Research",
+];
+
+function OpportunityPills() {
+  return (
+    <section className="py-14 px-6 border-y border-border overflow-hidden" style={{ background: "#f8f9ff" }}>
+      <div className="max-w-7xl mx-auto">
+        <p
+          className="text-center text-sm text-gray-400 font-medium mb-6"
+          style={{ fontFamily: "'Inter', sans-serif" }}
+        >
+          Opportunities matched across
+        </p>
+        <div className="flex flex-wrap justify-center gap-3">
+          {OPPORTUNITY_TYPES.map((type) => (
+            <span
+              key={type}
+              className="text-sm font-semibold text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-full px-5 py-2 hover:bg-emerald-100 transition-colors cursor-pointer"
+              style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+            >
+              {type}
+            </span>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function CTA() {
+  return (
+    <section className="py-28 px-6 relative overflow-hidden">
+      <div
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          background:
+            "radial-gradient(ellipse 80% 60% at 50% 50%, rgba(5,150,105,0.12) 0%, transparent 70%)",
+        }}
+      />
+      <div className="relative max-w-3xl mx-auto text-center">
+        <div className="inline-flex items-center gap-2 bg-teal-50 border border-teal-100 text-teal-600 text-xs font-semibold uppercase tracking-wider px-4 py-2 rounded-full mb-8">
+          <Sparkles className="w-3.5 h-3.5" />
+          Start today — it's free for students
+        </div>
+
+        <h2
+          className="text-5xl md:text-6xl font-extrabold tracking-tight text-gray-900 mb-6 leading-tight"
+          style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+        >
+          Start building your CV with the{" "}
+          <span
+            style={{
+              background: "linear-gradient(135deg, #059669 0%, #0d9488 100%)",
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent",
+            }}
+          >
+            right opportunities.
+          </span>
+        </h2>
+
+        <p
+          className="text-gray-500 text-lg mb-10 max-w-xl mx-auto leading-relaxed"
+          style={{ fontFamily: "'Inter', sans-serif" }}
+        >
+          Join over 2,400 engineering students who discovered opportunities that matched their
+          actual level — and landed internships, projects, and research roles.
+        </p>
+
+        <button
+          className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-lg px-9 py-4 rounded-full shadow-xl shadow-emerald-200 transition-all hover:shadow-emerald-300 hover:-translate-y-0.5"
+          style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+        >
+          Create Profile
+          <ArrowRight className="w-5 h-5" />
+        </button>
+
+        <p
+          className="text-gray-400 text-sm mt-5"
+          style={{ fontFamily: "'Inter', sans-serif" }}
+        >
+          No credit card required · Takes 5 minutes · University email preferred
+        </p>
+      </div>
+    </section>
+  );
+}
+
+function Footer() {
+  return (
+    <footer className="bg-gray-900 text-gray-400 px-6 py-12">
+      <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
+        <div className="flex items-center gap-2">
+          <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center">
+            <Sparkles className="w-3.5 h-3.5 text-white" />
+          </div>
+          <span
+            className="text-white font-extrabold text-lg"
+            style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+          >
+            Skill<span className="text-emerald-400">+</span>
+          </span>
+        </div>
+        <p
+          className="text-sm text-center"
+          style={{ fontFamily: "'Inter', sans-serif" }}
+        >
+          Built for engineering students · AI-powered career guidance · © 2024 Skill+
+        </p>
+        <div className="flex items-center gap-6 text-sm">
+          {["Privacy", "Terms", "Contact"].map((l) => (
+            <a key={l} href="#" className="hover:text-white transition-colors">
+              {l}
+            </a>
+          ))}
+        </div>
+      </div>
+    </footer>
+  );
+}
+
+export default function App() {
+  return (
+    <div className="min-h-screen bg-background text-foreground overflow-x-hidden">
+      <Nav />
+      <Hero />
+      <OpportunityPills />
+      <HowItWorks />
+      <Features />
+      <RecommendationCard />
+      <CTA />
+      <Footer />
+    </div>
+  );
+}
