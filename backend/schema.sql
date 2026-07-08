@@ -8,7 +8,6 @@ CREATE TABLE IF NOT EXISTS users (
     email VARCHAR(150) UNIQUE NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
     role VARCHAR(50) DEFAULT 'student',
-
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     
 );
