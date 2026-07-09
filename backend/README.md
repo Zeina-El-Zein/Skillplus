@@ -50,10 +50,9 @@ Create a `.env` file inside the `backend` folder.
 Example:
 
 ```env
-DATABASE_URL=postgresql://postgres:yourpassword@localhost:5432/skillplus
+DATABASE_URL=postgresql://postgres:admin123@localhost:5432/skillplus
 ```
 
-Replace `yourpassword` with your actual PostgreSQL password.
 
 Important: `.env` should not be pushed to GitHub because it contains private database credentials.
 
