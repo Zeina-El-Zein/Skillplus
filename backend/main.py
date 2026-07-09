@@ -1,98 +1,80 @@
-from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
-from typing import List
-import psycopg2
+from fastapi import FastAPI, Depends, HTTPException, status
+from sqlalchemy.orm import Session
+from sqlalchemy import text
 
-app = FastAPI()
-def get_db_connection():
-    return psycopg2.connect(
-        host="localhost",
-        database="skillplus",
-        user="postgres",
-        password="admin123"
-    )
+from auth import router as auth_router
+from database import get_db
+from schemas import StudentProfile
 
+app = FastAPI(title="Skill+ Backend")
 
-class StudentProfile(BaseModel):
-    user_id: int
-    major: str
-    year_of_study: int
-    courses_taken: List[str]
-    current_skills: List[str]
-    interests: List[str]
-    career_goal: str
-    available_time_per_week: int
-    preferred_opportunity_type: str
+app.include_router(auth_router)
 
 
 @app.get("/")
-def home():
+def root():
     return {"message": "Skill+ backend is running"}
 
+
 @app.post("/student-profile")
-def create_student_profile(profile: StudentProfile):
-    conn = None
-    cur = None
-
+def create_student_profile(profile: StudentProfile, db: Session = Depends(get_db)):
     try:
-        conn = get_db_connection()
-        cur = conn.cursor()
+        new_profile = db.execute(
+            text("""
+                INSERT INTO students (
+                    user_id,
+                    major,
+                    year_of_study,
+                    courses_taken,
+                    current_skills,
+                    interests,
+                    career_goal,
+                    available_time_per_week,
+                    preferred_opportunity_type
+                )
+                VALUES (
+                    :user_id,
+                    :major,
+                    :year_of_study,
+                    :courses_taken,
+                    :current_skills,
+                    :interests,
+                    :career_goal,
+                    :available_time_per_week,
+                    :preferred_opportunity_type
+                )
+                RETURNING id
+            """),
+            {
+                "user_id": profile.user_id,
+                "major": profile.major,
+                "year_of_study": profile.year_of_study,
+                "courses_taken": profile.courses_taken,
+                "current_skills": profile.current_skills,
+                "interests": profile.interests,
+                "career_goal": profile.career_goal,
+                "available_time_per_week": profile.available_time_per_week,
+                "preferred_opportunity_type": profile.preferred_opportunity_type,
+            }
+        ).fetchone()
 
-        cur.execute(
-            """
-            INSERT INTO students (
-                user_id,
-                major,
-                year_of_study,
-                courses_taken,
-                current_skills,
-                interests,
-                career_goal,
-                available_time_per_week,
-                preferred_opportunity_type
-            )
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-            RETURNING id;
-            """,
-            (
-                profile.user_id,
-                profile.major,
-                profile.year_of_study,
-                profile.courses_taken,
-                profile.current_skills,
-                profile.interests,
-                profile.career_goal,
-                profile.available_time_per_week,
-                profile.preferred_opportunity_type
-            )
-        )
-
-        student_id = cur.fetchone()[0]
-        conn.commit()
+        db.commit()
 
         return {
             "message": "Student profile saved successfully",
-            "student_id": student_id
+            "student_id": new_profile.id
         }
 
-    except psycopg2.errors.ForeignKeyViolation:
-        if conn:
-            conn.rollback()
-        raise HTTPException(
-            status_code=400,
-            detail="User not found. Please use an existing user_id."
-        )
+    except Exception as e:
+        db.rollback()
 
-    except Exception:
-        if conn:
-            conn.rollback()
+        if "foreign key constraint" in str(e):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="User not found. Please use an existing user_id."
+            )
+
         raise HTTPException(
-            status_code=500,
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Could not save student profile."
         )
-
-    finally:
-        if cur:
-            cur.close()
-        if conn:
-            conn.close()
