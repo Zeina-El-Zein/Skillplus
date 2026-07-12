@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { BrowserRouter, Navigate, Route, Routes, useNavigate } from "react-router";
 import {
   User,
   BarChart2,
@@ -16,11 +17,16 @@ import {
   Menu,
   X,
 } from "lucide-react";
+import LoginPage from "./pages/LoginPage";
+import ProfilePage from "./pages/ProfilePage";
+import ResultsPage from "./pages/ResultsPage";
+import SignupPage from "./pages/SignupPage";
 
 const NAV_LINKS = ["Home", "How It Works", "Opportunities", "Roadmap", "About"];
 
 function Nav() {
   const [open, setOpen] = useState(false);
+  const navigate = useNavigate();
   return (
     <header className="sticky top-0 z-50 w-full bg-white/80 backdrop-blur-md border-b border-border">
       <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
@@ -50,10 +56,16 @@ function Nav() {
         </nav>
 
         <div className="hidden md:flex items-center gap-3">
-          <button className="text-sm font-semibold text-emerald-600 hover:text-emerald-700 transition-colors px-3 py-1.5">
+          <button
+            onClick={() => navigate("/login")}
+            className="text-sm font-semibold text-emerald-600 hover:text-emerald-700 transition-colors px-3 py-1.5"
+          >
             Log In
           </button>
-          <button className="text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-700 transition-colors px-4 py-2 rounded-full shadow-sm">
+          <button
+            onClick={() => navigate("/signup")}
+            className="text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-700 transition-colors px-4 py-2 rounded-full shadow-sm"
+          >
             Sign Up
           </button>
         </div>
@@ -73,9 +85,20 @@ function Nav() {
               {link}
             </a>
           ))}
-          <button className="text-sm font-semibold text-white bg-emerald-600 rounded-full px-4 py-2 w-fit">
-            Sign Up
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => navigate("/login")}
+              className="text-sm font-semibold text-emerald-600 rounded-full px-4 py-2"
+            >
+              Log In
+            </button>
+            <button
+              onClick={() => navigate("/signup")}
+              className="text-sm font-semibold text-white bg-emerald-600 rounded-full px-4 py-2"
+            >
+              Sign Up
+            </button>
+          </div>
         </div>
       )}
     </header>
@@ -83,6 +106,7 @@ function Nav() {
 }
 
 function Hero() {
+  const navigate = useNavigate();
   return (
     <section className="relative overflow-hidden pt-24 pb-28 px-6">
       {/* Background blobs */}
@@ -129,6 +153,7 @@ function Hero() {
 
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
           <button
+            onClick={() => navigate("/signup")}
             className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-base px-7 py-3.5 rounded-full shadow-lg shadow-emerald-200 transition-all hover:shadow-emerald-300 hover:-translate-y-0.5"
             style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
           >
@@ -543,6 +568,7 @@ function OpportunityPills() {
 }
 
 function CTA() {
+  const navigate = useNavigate();
   return (
     <section className="py-28 px-6 relative overflow-hidden">
       <div
@@ -583,6 +609,7 @@ function CTA() {
         </p>
 
         <button
+          onClick={() => navigate("/signup")}
           className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-lg px-9 py-4 rounded-full shadow-xl shadow-emerald-200 transition-all hover:shadow-emerald-300 hover:-translate-y-0.5"
           style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
         >
@@ -634,7 +661,7 @@ function Footer() {
   );
 }
 
-export default function App() {
+function HomePage() {
   return (
     <div className="min-h-screen bg-background text-foreground overflow-x-hidden">
       <Nav />
@@ -646,5 +673,20 @@ export default function App() {
       <CTA />
       <Footer />
     </div>
+  );
+}
+
+export default function App() {
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<HomePage />} />
+        <Route path="/signup" element={<SignupPage />} />
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/profile" element={<ProfilePage />} />
+        <Route path="/results" element={<ResultsPage />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </BrowserRouter>
   );
 }

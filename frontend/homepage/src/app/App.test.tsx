@@ -1,0 +1,101 @@
+import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import App from "./App";
+
+const user = {
+  id: 1,
+  name: "Abdul Kader El Hakim",
+  email: "aie25@mail.aub.edu",
+  role: "student",
+};
+
+describe("Member 5 complete student flow", () => {
+  beforeEach(() => {
+    window.history.pushState({}, "", "/signup");
+  });
+
+  it("completes signup, login, profile submission and analysis results", async () => {
+    const requests: Array<{ path: string; body: unknown }> = [];
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = new URL(String(input));
+        const body = init?.body ? JSON.parse(String(init.body)) : null;
+        requests.push({ path: url.pathname, body });
+
+        if (url.pathname === "/auth/signup") {
+          return Response.json({ message: "User created successfully", user });
+        }
+
+        if (url.pathname === "/auth/login") {
+          return Response.json({ message: "Login successful", user });
+        }
+
+        if (url.pathname === "/student-profile") {
+          return Response.json({ message: "Student profile saved successfully", student_id: 4 });
+        }
+
+        if (url.pathname === "/student/analyze") {
+          return Response.json({
+            level: "Intermediate",
+            strengths: ["3 course(s) completed", "2 skill(s) acquired"],
+            missing: ["5 more course(s) to reach Advanced", "4 more skill(s) to reach Advanced"],
+            next_step: "Keep building breadth — a few more courses/skills unlocks Advanced.",
+          });
+        }
+
+        return Response.json({ detail: "Not found" }, { status: 404 });
+      }),
+    );
+
+    const browser = userEvent.setup();
+    render(<App />);
+
+    await browser.type(screen.getByLabelText(/Full name/i), user.name);
+    await browser.type(screen.getByLabelText(/Email address/i), user.email);
+    await browser.type(screen.getByLabelText(/^Password$/i), "password123");
+    await browser.type(screen.getByLabelText(/Confirm password/i), "password123");
+    await browser.click(screen.getByRole("button", { name: /Create account/i }));
+
+    expect(await screen.findByRole("heading", { name: /Welcome back/i })).toBeInTheDocument();
+    await browser.type(screen.getByLabelText(/Password/i), "password123");
+    await browser.click(screen.getByRole("button", { name: /Log in/i }));
+
+    expect(await screen.findByRole("heading", { name: /Build your student profile/i })).toBeInTheDocument();
+    await browser.type(screen.getByLabelText(/Major/i), "CCE");
+    await browser.selectOptions(screen.getByLabelText(/Year of study/i), "3");
+    await browser.type(screen.getByLabelText(/Courses taken/i), "Data Structures, OOP, Signals");
+    await browser.type(screen.getByLabelText(/Current skills/i), "Python, SQL");
+    await browser.type(screen.getByLabelText(/Interests/i), "AI, Backend Development");
+    await browser.type(screen.getByLabelText(/Career goal/i), "Software Engineer");
+    await browser.type(screen.getByLabelText(/Available hours per week/i), "6");
+    await browser.selectOptions(screen.getByLabelText(/Preferred opportunity type/i), "Internship");
+    await browser.click(screen.getByRole("button", { name: /Save and analyze profile/i }));
+
+    expect(await screen.findByRole("heading", { name: /Your analysis is ready/i })).toBeInTheDocument();
+    expect(screen.getByText("Intermediate")).toBeInTheDocument();
+    expect(screen.getByText(/Keep building breadth/i)).toBeInTheDocument();
+
+    await waitFor(() => expect(requests).toHaveLength(4));
+    expect(requests.map((request) => request.path)).toEqual([
+      "/auth/signup",
+      "/auth/login",
+      "/student-profile",
+      "/student/analyze",
+    ]);
+    expect(requests[2].body).toEqual({
+      user_id: 1,
+      major: "CCE",
+      year_of_study: 3,
+      courses_taken: ["Data Structures", "OOP", "Signals"],
+      current_skills: ["Python", "SQL"],
+      interests: ["AI", "Backend Development"],
+      career_goal: "Software Engineer",
+      available_time_per_week: 6,
+      preferred_opportunity_type: "Internship",
+    });
+    expect(requests[3].body).toEqual({ year: 3, courses: 3, skills: 2 });
+  });
+});
