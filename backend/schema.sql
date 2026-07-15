@@ -14,7 +14,7 @@ CREATE TABLE IF NOT EXISTS users (
 
 CREATE TABLE IF NOT EXISTS students (
     id SERIAL PRIMARY KEY,
-    user_id INTEGER REFERENCES users(id),
+    user_id INTEGER UNIQUE REFERENCES users(id),
     major VARCHAR(100),
     year_of_study INTEGER,
     courses_taken TEXT[],
