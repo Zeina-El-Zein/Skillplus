@@ -1,4 +1,4 @@
-## Student Level Classification (Issue #12)
+## Student Level Classification (Feature 1 issue #12,13,14)
 
 The platform classifies a student's level using explicit, testable rules
 based on `year`, `courses` (number of courses taken), and `skills`
@@ -21,26 +21,30 @@ skills is classified by their experience, not capped by their year.
 
 ### Endpoint
 
-`POST /student/analyze`
+`POST /student/analyze/{user_id}`
 
-Currently a separate endpoint from `POST /student/profile` (proposed —
-pending confirmation with Member 3). Auto-triggering after profile
-creation is a possible alternative.
+Matches the existing `GET /student/profile/{user_id}` pattern already in
+`main.py`. No request body — it looks up the student's already-saved
+profile from the `students` table (via `user_id`), classifies it, and
+writes the result into the `level` column on that row (schema.sql
+already has this column reserved for it).
+
+This settles Issue 8's open question: analysis is a **separate call**
+from `POST /student-profile`, triggered by hitting this endpoint
+afterward (e.g. from the frontend, right after profile save succeeds).
 
 ### Example input/output
 
 **Request**
-```json
-{
-  "year": 1,
-  "courses": 10,
-  "skills": 7
-}
 ```
+POST /student/analyze/2
+```
+(no body — `user_id` comes from the path, same as the existing profile endpoints)
 
 **Response**
 ```json
 {
+  "user_id": 2,
   "level": "Advanced",
   "strengths": ["10 course(s) completed", "7 skill(s) acquired"],
   "missing": [],
@@ -48,13 +52,21 @@ creation is a possible alternative.
 }
 ```
 
-**Another example — Beginner**
-
-Request: `{"year": 1, "courses": 2, "skills": 1}`
-
-Response:
+**If no profile exists for that user:**
 ```json
 {
+  "detail": "Student profile not found."
+}
+```
+(404, matching the style of the existing `GET /student/profile/{user_id}` endpoint)
+
+**Beginner example**
+```
+POST /student/analyze/3
+```
+```json
+{
+  "user_id": 3,
   "level": "Beginner",
   "strengths": ["2 course(s) completed", "1 skill(s) acquired"],
   "missing": ["3 more course(s) to reach Intermediate", "3 more skill(s) to reach Intermediate"],
@@ -62,12 +74,32 @@ Response:
 }
 ```
 
-### Known open questions
+### Testing status
+
+Verified end-to-end against a real local PostgreSQL database (not just
+unit tests): signup → create profile → analyze, for both a Beginner
+case (2 courses / 1 skill) and an Advanced case (10 courses / 7
+skills). Both returned the correct level and correctly wrote it to the
+`level` column in `students`. Unit tests for the pure classification
+logic (`test_classification.py`) also pass, including the Year-1-
+experienced edge case from Issue 1's acceptance criteria.
+
+### Known bug found during testing (flagged to Member 3)
+
+The `students` table has no `UNIQUE` constraint on `user_id`, so
+calling `POST /student-profile` twice for the same user creates two
+separate rows instead of updating the existing one. Since
+`GET /student/profile/{user_id}` (and this analyze endpoint) use
+`.fetchone()`, which row gets returned is arbitrary when duplicates
+exist. Suggested fix: add `UNIQUE(user_id)` to `students` in
+`schema.sql`, and change `POST /student-profile` to upsert
+(`INSERT ... ON CONFLICT (user_id) DO UPDATE ...`) instead of always
+inserting.
+
+### Known open questions (raise with team)
 
 - The design doc lists 4 levels (Beginner, Intermediate, Ready-for-internships-with-gaps,
   Not-yet-ready); this implementation currently covers the 3 from Issue 1
   (Beginner/Intermediate/Advanced) as a placeholder.
-- The exact `profile` input shape depends on Issue 8 — `year`/`courses`/`skills`
-  are assumed as integer counts; confirm this matches the finalized profile schema.
 - Fallback case (rule 4 above) isn't explicitly defined by the original
   thresholds and needs sign-off.
