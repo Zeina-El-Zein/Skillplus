@@ -5,6 +5,7 @@ from sqlalchemy import text
 from auth import router as auth_router
 from database import get_db
 from schemas import StudentProfile
+from classification import analyze_profile
 
 app = FastAPI(title="Skill+ Backend")
 
@@ -115,7 +116,8 @@ def get_student_profile(
                     interests,
                     career_goal,
                     available_time_per_week,
-                    preferred_opportunity_type
+                    preferred_opportunity_type,
+                    level 
                 FROM students
                 WHERE user_id = :user_id
             """),
@@ -140,7 +142,8 @@ def get_student_profile(
             "available_time_per_week":
                 profile["available_time_per_week"],
             "preferred_opportunity_type":
-                profile["preferred_opportunity_type"]
+                profile["preferred_opportunity_type"],
+            "level": profile["level"]
         }
 
     except HTTPException:
@@ -150,4 +153,52 @@ def get_student_profile(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Could not retrieve student profile."
+        )
+        
+@app.post("/student/analyze/{user_id}")
+def analyze_student(user_id: int, db: Session = Depends(get_db)):
+    try:
+        profile = db.execute(
+            text("""
+                SELECT year_of_study, courses_taken, current_skills
+                FROM students
+                WHERE user_id = :user_id
+            """),
+            {"user_id": user_id}
+        ).mappings().fetchone()
+
+        if profile is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Student profile not found."
+            )
+
+        courses = len(profile["courses_taken"] or [])
+        skills = len(profile["current_skills"] or [])
+        year = profile["year_of_study"] or 0
+
+        result = analyze_profile(year=year, courses=courses, skills=skills)
+
+        db.execute(
+            text("UPDATE students SET level = :level WHERE user_id = :user_id"),
+            {"level": result.level, "user_id": user_id}
+        )
+        db.commit()
+
+        return {
+            "user_id": user_id,
+            "level": result.level,
+            "strengths": result.strengths,
+            "missing": result.missing,
+            "next_step": result.next_step,
+        }
+
+    except HTTPException:
+        raise
+
+    except Exception:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Could not analyze student profile."
         )

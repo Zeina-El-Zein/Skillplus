@@ -5,14 +5,15 @@ Replaces the vague "AI analyzes the profile" idea with explicit,
 testable rules.
 
 Rules (checked in order — first match wins):
-    1. courses >= 8 AND skills >= 6           -> Advanced
+    1. courses >= 8 AND skills >= 6            -> Advanced
     2. courses >= 5 OR  skills >= 4            -> Intermediate
-    3. year == 1 AND courses < 5 AND skills < 3 -> Beginner
-    4. anything else                           -> Intermediate (fallback)
+    3. courses < 5 AND skills < 3              -> Beginner (any year)
+    4. anything else (e.g. skills == 3)        -> Intermediate (fallback)
 
-Experience thresholds are checked BEFORE the year-based Beginner rule,
-so a Year 1 student with enough courses/skills is never capped at
-Beginner just because of their year.
+Team decision : the Beginner rule applies to ALL years, not just
+Year 1 — an inexperienced Year 2+ student should see Beginner, not
+Intermediate. Experience thresholds are still checked first, so a
+student with enough courses/skills is never capped at Beginner.
 """
 
 from dataclasses import dataclass, field
@@ -45,12 +46,11 @@ def classify_level(year: int, courses: int, skills: int) -> str:
     if courses >= INTERMEDIATE_COURSES or skills >= INTERMEDIATE_SKILLS:
         return "Intermediate"
 
-    if year == 1 and courses < BEGINNER_MAX_COURSES and skills < BEGINNER_MAX_SKILLS:
+    if courses < BEGINNER_MAX_COURSES and skills < BEGINNER_MAX_SKILLS:
         return "Beginner"
-
-    # Fallback: e.g. a Year 2+ student who hasn't hit Intermediate or
-    # Beginner thresholds. Not covered explicitly by Issue 1 — flagged
-    # there as an open question for the team.
+    # Fallback: only reachable by courses < 5 AND skills == 3
+    # (just under the Intermediate threshold of 4). Team decided
+    # this rounds up to Intermediate.
     return "Intermediate"
 
 
