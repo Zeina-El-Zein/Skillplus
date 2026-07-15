@@ -34,6 +34,19 @@ From the main project folder, run:
 psql -U postgres -d skillplus -f backend/schema.sql
 ```
 
+### Step 4 — Create the .env file
+
+Create a file named `.env` inside the `backend/` folder with one line:
+
+DATABASE_URL=postgresql://postgres:YOUR_PASSWORD@localhost:5432/skillplus
+
+Replace YOUR_PASSWORD with your local PostgreSQL password.
+Never commit this file — it is listed in .gitignore.
+
+### Step 5 — Install dependencies
+
+pip install -r requirements.txt
+
 ## Database Tables
 
 - `users`: Stores user accounts for authentication.
@@ -145,7 +158,8 @@ Example successful response:
   ],
   "career_goal": "Become a backend developer",
   "available_time_per_week": 8,
-  "preferred_opportunity_type": "Internship"
+  "preferred_opportunity_type": "Internship",
+  "level": "Beginner"
 }
 ```
 
@@ -156,6 +170,35 @@ If no profile exists for the given user, the endpoint returns:
   "detail": "Student profile not found."
 }
 ```
+### POST /student/analyze/{user_id}
+
+Analyzes the saved profile using the classification rules, saves the
+resulting level in the students table, and returns it with details.
+
+Example request:
+
+    POST /student/analyze/2
+
+Example successful response:
+
+    {
+      "user_id": 2,
+      "level": "Beginner",
+      "strengths": ["2 course(s) completed", "2 skill(s) acquired"],
+      "missing": ["3 more course(s) to reach Intermediate",
+                  "1 more skill(s) to reach Intermediate"],
+      "next_step": "Focus on foundational courses and building your first skills."
+    }
+
+If no profile exists for the given user, it returns:
+
+    {"detail": "Student profile not found."}
+
+Classification rules (first match wins, any year of study):
+- 8+ courses AND 6+ skills → Advanced
+- 5+ courses OR 4+ skills → Intermediate
+- fewer than 5 courses AND fewer than 3 skills → Beginner
+- otherwise → Intermediate
 
 ## Running the Backend
 
