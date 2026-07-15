@@ -17,9 +17,12 @@ def root():
 
 
 @app.post("/student-profile")
-def create_student_profile(profile: StudentProfile, db: Session = Depends(get_db)):
+def create_student_profile(
+    profile: StudentProfile,
+    db: Session = Depends(get_db)
+):
     try:
-        new_profile = db.execute(
+        saved_profile = db.execute(
             text("""
                 INSERT INTO students (
                     user_id,
@@ -43,6 +46,18 @@ def create_student_profile(profile: StudentProfile, db: Session = Depends(get_db
                     :available_time_per_week,
                     :preferred_opportunity_type
                 )
+                ON CONFLICT (user_id)
+                DO UPDATE SET
+                    major = EXCLUDED.major,
+                    year_of_study = EXCLUDED.year_of_study,
+                    courses_taken = EXCLUDED.courses_taken,
+                    current_skills = EXCLUDED.current_skills,
+                    interests = EXCLUDED.interests,
+                    career_goal = EXCLUDED.career_goal,
+                    available_time_per_week =
+                        EXCLUDED.available_time_per_week,
+                    preferred_opportunity_type =
+                        EXCLUDED.preferred_opportunity_type
                 RETURNING id
             """),
             {
@@ -53,8 +68,10 @@ def create_student_profile(profile: StudentProfile, db: Session = Depends(get_db
                 "current_skills": profile.current_skills,
                 "interests": profile.interests,
                 "career_goal": profile.career_goal,
-                "available_time_per_week": profile.available_time_per_week,
-                "preferred_opportunity_type": profile.preferred_opportunity_type,
+                "available_time_per_week":
+                    profile.available_time_per_week,
+                "preferred_opportunity_type":
+                    profile.preferred_opportunity_type,
             }
         ).fetchone()
 
@@ -62,7 +79,7 @@ def create_student_profile(profile: StudentProfile, db: Session = Depends(get_db
 
         return {
             "message": "Student profile saved successfully",
-            "student_id": new_profile.id
+            "student_id": saved_profile.id
         }
 
     except Exception as e:
@@ -78,10 +95,13 @@ def create_student_profile(profile: StudentProfile, db: Session = Depends(get_db
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Could not save student profile."
         )
-        
-        
+
+
 @app.get("/student/profile/{user_id}")
-def get_student_profile(user_id: int, db: Session = Depends(get_db)):
+def get_student_profile(
+    user_id: int,
+    db: Session = Depends(get_db)
+):
     try:
         profile = db.execute(
             text("""
@@ -117,10 +137,10 @@ def get_student_profile(user_id: int, db: Session = Depends(get_db)):
             "current_skills": profile["current_skills"],
             "interests": profile["interests"],
             "career_goal": profile["career_goal"],
-            "available_time_per_week": profile["available_time_per_week"],
-            "preferred_opportunity_type": profile[
-                "preferred_opportunity_type"
-            ]
+            "available_time_per_week":
+                profile["available_time_per_week"],
+            "preferred_opportunity_type":
+                profile["preferred_opportunity_type"]
         }
 
     except HTTPException:
@@ -130,4 +150,4 @@ def get_student_profile(user_id: int, db: Session = Depends(get_db)):
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Could not retrieve student profile."
-        )        
+        )
