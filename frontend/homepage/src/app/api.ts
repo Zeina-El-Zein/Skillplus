@@ -74,14 +74,12 @@ export function saveStudentProfile(profile: StudentProfile) {
 }
 
 export async function analyzeStudentProfile(profile: StudentProfile) {
-  const result = await request<AnalysisResult & { missing_skills?: string[] }>("/student/analyze", {
-    method: "POST",
-    body: JSON.stringify({
-      year: profile.year_of_study,
-      courses: profile.courses_taken.length,
-      skills: profile.current_skills.length,
-    }),
-  });
+  const result = await request<AnalysisResult & { missing_skills?: string[] }>(
+    `/student/analyze/${profile.user_id}`,
+    {
+      method: "POST",
+    }
+  );
 
   return {
     ...result,
