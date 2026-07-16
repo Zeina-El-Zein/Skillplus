@@ -71,10 +71,11 @@ The `opportunities` table comes pre-populated with five sample opportunities:
 
 ## Student Profile API Endpoints
 
-The backend provides two endpoints for student profiles:
+The backend provides three endpoints for student profiles:
 
-- `POST /student-profile` saves a new student profile.
+- `POST /student-profile` saves or updates a student profile (one profile per user).
 - `GET /student/profile/{user_id}` retrieves an existing student profile.
+- `POST /student/analyze/{user_id}` analyzes the profile and saves the level.
 
 ### POST /student-profile
 
@@ -170,6 +171,8 @@ If no profile exists for the given user, the endpoint returns:
   "detail": "Student profile not found."
 }
 ```
+Note: `level` is `null` until the profile has been analyzed at least
+once with `POST /student/analyze/{user_id}`.
 ### POST /student/analyze/{user_id}
 
 Analyzes the saved profile using the classification rules, saves the
@@ -226,3 +229,4 @@ The documentation page can be used to test:
 - `POST /auth/login`
 - `POST /student-profile`
 - `GET /student/profile/{user_id}`
+- `POST /student/analyze/{user_id}`
