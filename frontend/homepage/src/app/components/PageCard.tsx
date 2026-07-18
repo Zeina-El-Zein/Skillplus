@@ -9,9 +9,9 @@ type PageCardProps = {
 
 export default function PageCard({ eyebrow, title, description, children }: PageCardProps) {
   return (
-    <section className="bg-white border border-emerald-100 rounded-3xl shadow-xl shadow-emerald-100/50 overflow-hidden">
-      <div className="px-7 md:px-10 pt-9 pb-6 border-b border-emerald-50">
-        <p className="text-xs font-bold uppercase tracking-widest text-emerald-600 mb-2">
+    <section className="bg-white border border-blue-100 rounded-3xl shadow-xl shadow-blue-100/50 overflow-hidden">
+      <div className="px-7 md:px-10 pt-9 pb-6 border-b border-blue-50">
+        <p className="text-xs font-bold uppercase tracking-widest text-blue-900 mb-2">
           {eyebrow}
         </p>
         <h1

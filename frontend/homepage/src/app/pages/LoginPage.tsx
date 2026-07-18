@@ -46,7 +46,7 @@ export default function LoginPage() {
       >
         <form onSubmit={handleSubmit} className="flex flex-col gap-5">
           {state.accountCreated && (
-            <div className="flex items-center gap-3 rounded-xl bg-emerald-50 border border-emerald-100 px-4 py-3 text-sm text-emerald-700">
+            <div className="flex items-center gap-3 rounded-xl bg-blue-50 border border-blue-100 px-4 py-3 text-sm text-blue-800">
               <CheckCircle2 className="w-5 h-5 flex-shrink-0" />
               Account created successfully. Log in to continue.
             </div>
@@ -74,6 +74,15 @@ export default function LoginPage() {
             />
           </Field>
 
+          <div className="flex justify-end -mt-2">
+            <Link
+              to="/forgot-password"
+              className="text-sm font-semibold text-blue-900 hover:text-blue-700 transition-colors"
+            >
+              Forgot password?
+            </Link>
+          </div>
+
           {error && (
             <p role="alert" className="rounded-xl bg-red-50 border border-red-100 px-4 py-3 text-sm text-red-700">
               {error}
@@ -83,7 +92,7 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="inline-flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-300 text-white font-semibold px-6 py-3.5 rounded-full transition-colors"
+            className="inline-flex items-center justify-center gap-2 bg-blue-900 hover:bg-blue-800 disabled:bg-blue-300 text-white font-semibold px-6 py-3.5 rounded-full transition-colors"
           >
             {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowRight className="w-4 h-4" />}
             Log in
@@ -91,7 +100,7 @@ export default function LoginPage() {
 
           <p className="text-center text-sm text-gray-500">
             Need an account?{" "}
-            <Link to="/signup" className="font-semibold text-emerald-600 hover:text-emerald-700">
+            <Link to="/signup" className="font-semibold text-blue-900 hover:text-blue-800">
               Sign up
             </Link>
           </p>

@@ -22,9 +22,9 @@ export default function ResultsPage() {
         description={`Skill+ analyzed ${profile.courses_taken.length} course(s) and ${profile.current_skills.length} skill(s) for ${user.name}.`}
       >
         <div className="flex flex-col gap-6">
-          <div className="rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 p-6 text-white flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="rounded-2xl bg-gradient-to-r from-blue-900 to-blue-700 p-6 text-white flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
-              <p className="text-emerald-100 text-xs font-bold uppercase tracking-widest mb-2">
+              <p className="text-blue-100 text-xs font-bold uppercase tracking-widest mb-2">
                 Current level
               </p>
               <h2
@@ -45,7 +45,7 @@ export default function ResultsPage() {
               title="Strengths"
               items={result.strengths}
               empty="Your strengths will grow as you add courses and skills."
-              color="emerald"
+              color="blue"
             />
             <ResultSection
               icon={<Target className="w-5 h-5" />}
@@ -56,8 +56,8 @@ export default function ResultsPage() {
             />
           </div>
 
-          <div className="rounded-2xl bg-teal-50 border border-teal-100 p-6">
-            <div className="flex items-center gap-2 text-teal-700 mb-3">
+          <div className="rounded-2xl bg-blue-50 border border-blue-100 p-6">
+            <div className="flex items-center gap-2 text-blue-800 mb-3">
               <Lightbulb className="w-5 h-5" />
               <h3 className="font-bold">Suggested next step</h3>
             </div>
@@ -79,7 +79,7 @@ export default function ResultsPage() {
           <button
             type="button"
             onClick={() => navigate("/profile")}
-            className="inline-flex items-center justify-center gap-2 border border-emerald-200 text-emerald-700 hover:bg-emerald-50 font-semibold px-6 py-3.5 rounded-full transition-colors"
+            className="inline-flex items-center justify-center gap-2 border border-blue-200 text-blue-800 hover:bg-blue-50 font-semibold px-6 py-3.5 rounded-full transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />
             Edit profile and analyze again
@@ -95,12 +95,12 @@ type ResultSectionProps = {
   title: string;
   items: string[];
   empty: string;
-  color: "emerald" | "amber";
+  color: "blue" | "amber";
 };
 
 function ResultSection({ icon, title, items, empty, color }: ResultSectionProps) {
-  const colors = color === "emerald"
-    ? "bg-emerald-50 border-emerald-100 text-emerald-700"
+  const colors = color === "blue"
+    ? "bg-blue-50 border-blue-100 text-blue-800"
     : "bg-amber-50 border-amber-100 text-amber-700";
 
   return (

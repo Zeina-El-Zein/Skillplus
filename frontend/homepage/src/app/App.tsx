@@ -18,6 +18,7 @@ import {
   X,
 } from "lucide-react";
 import LoginPage from "./pages/LoginPage";
+import ForgotPasswordPage from "./pages/ForgotPasswordPage";
 import ProfilePage from "./pages/ProfilePage";
 import ResultsPage from "./pages/ResultsPage";
 import SignupPage from "./pages/SignupPage";
@@ -31,14 +32,14 @@ function Nav() {
     <header className="sticky top-0 z-50 w-full bg-white/80 backdrop-blur-md border-b border-border">
       <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-sm">
+          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-900 to-blue-700 flex items-center justify-center shadow-sm">
             <Sparkles className="w-4 h-4 text-white" />
           </div>
           <span
             className="text-xl font-extrabold tracking-tight"
-            style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", color: "#0b1a15" }}
+            style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", color: "#0D1B2A" }}
           >
-            Skill<span className="text-emerald-600">+</span>
+            Skill<span className="text-blue-900">+</span>
           </span>
         </div>
 
@@ -47,7 +48,7 @@ function Nav() {
             <a
               key={link}
               href="#"
-              className="text-sm font-medium text-gray-600 hover:text-emerald-600 transition-colors"
+              className="text-sm font-medium text-gray-600 hover:text-blue-900 transition-colors"
               style={{ fontFamily: "'Inter', sans-serif" }}
             >
               {link}
@@ -58,20 +59,20 @@ function Nav() {
         <div className="hidden md:flex items-center gap-3">
           <button
             onClick={() => navigate("/login")}
-            className="text-sm font-semibold text-emerald-600 hover:text-emerald-700 transition-colors px-3 py-1.5"
+            className="text-sm font-semibold text-blue-900 hover:text-blue-800 transition-colors px-3 py-1.5"
           >
             Log In
           </button>
           <button
             onClick={() => navigate("/signup")}
-            className="text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-700 transition-colors px-4 py-2 rounded-full shadow-sm"
+            className="text-sm font-semibold text-white bg-blue-900 hover:bg-blue-800 transition-colors px-4 py-2 rounded-full shadow-sm"
           >
             Sign Up
           </button>
         </div>
 
         <button
-          className="md:hidden text-gray-600 hover:text-emerald-600 transition-colors"
+          className="md:hidden text-gray-600 hover:text-blue-900 transition-colors"
           onClick={() => setOpen(!open)}
         >
           {open ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
@@ -88,13 +89,13 @@ function Nav() {
           <div className="flex items-center gap-3">
             <button
               onClick={() => navigate("/login")}
-              className="text-sm font-semibold text-emerald-600 rounded-full px-4 py-2"
+              className="text-sm font-semibold text-blue-900 rounded-full px-4 py-2"
             >
               Log In
             </button>
             <button
               onClick={() => navigate("/signup")}
-              className="text-sm font-semibold text-white bg-emerald-600 rounded-full px-4 py-2"
+              className="text-sm font-semibold text-white bg-blue-900 rounded-full px-4 py-2"
             >
               Sign Up
             </button>
@@ -112,28 +113,28 @@ function Hero() {
       {/* Background blobs */}
       <div
         className="absolute -top-32 -left-32 w-[520px] h-[520px] rounded-full opacity-20 blur-3xl pointer-events-none"
-        style={{ background: "radial-gradient(circle, #059669, transparent 70%)" }}
+        style={{ background: "radial-gradient(circle, #1E3A8A, transparent 70%)" }}
       />
       <div
         className="absolute -bottom-24 right-0 w-[420px] h-[420px] rounded-full opacity-15 blur-3xl pointer-events-none"
-        style={{ background: "radial-gradient(circle, #0d9488, transparent 70%)" }}
+        style={{ background: "radial-gradient(circle, #1D4ED8, transparent 70%)" }}
       />
 
       <div className="relative max-w-4xl mx-auto text-center">
-        <div className="inline-flex items-center gap-2 bg-emerald-50 border border-emerald-100 text-emerald-600 text-xs font-semibold uppercase tracking-wider px-4 py-2 rounded-full mb-8">
+        <div className="inline-flex items-center gap-2 bg-blue-50 border border-blue-100 text-blue-900 text-xs font-semibold uppercase tracking-wider px-4 py-2 rounded-full mb-8">
           <Brain className="w-3.5 h-3.5" />
           AI-Powered Career Guidance for Students
         </div>
 
         <h1
           className="text-5xl md:text-6xl lg:text-7xl font-extrabold leading-tight tracking-tight mb-6"
-          style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", color: "#0f0f1a" }}
+          style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", color: "#0D1B2A" }}
         >
           Find opportunities that{" "}
           <span
             className="relative inline-block"
             style={{
-              background: "linear-gradient(135deg, #059669 0%, #0d9488 100%)",
+              background: "linear-gradient(135deg, #1E3A8A 0%, #1D4ED8 100%)",
               WebkitBackgroundClip: "text",
               WebkitTextFillColor: "transparent",
             }}
@@ -154,14 +155,14 @@ function Hero() {
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
           <button
             onClick={() => navigate("/signup")}
-            className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-base px-7 py-3.5 rounded-full shadow-lg shadow-emerald-200 transition-all hover:shadow-emerald-300 hover:-translate-y-0.5"
+            className="inline-flex items-center gap-2 bg-blue-900 hover:bg-blue-800 text-white font-semibold text-base px-7 py-3.5 rounded-full shadow-lg shadow-blue-200 transition-all hover:shadow-blue-300 hover:-translate-y-0.5"
             style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
           >
             Get Started
             <ArrowRight className="w-4 h-4" />
           </button>
           <button
-            className="inline-flex items-center gap-2 bg-white text-gray-700 font-semibold text-base px-7 py-3.5 rounded-full border border-gray-200 hover:border-emerald-300 hover:text-emerald-600 transition-all shadow-sm"
+            className="inline-flex items-center gap-2 bg-white text-gray-700 font-semibold text-base px-7 py-3.5 rounded-full border border-gray-200 hover:border-blue-300 hover:text-blue-900 transition-all shadow-sm"
             style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
           >
             View Demo
@@ -172,7 +173,7 @@ function Hero() {
         <div className="mt-14 flex flex-wrap items-center justify-center gap-6 text-sm text-gray-500">
           {["2,400+ students matched", "95% fit accuracy", "Free for students"].map((stat) => (
             <div key={stat} className="flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+              <CheckCircle2 className="w-4 h-4 text-blue-700" />
               <span style={{ fontFamily: "'Inter', sans-serif" }}>{stat}</span>
             </div>
           ))}
@@ -215,7 +216,7 @@ function HowItWorks() {
       <div className="max-w-7xl mx-auto">
         <div className="text-center mb-16">
           <p
-            className="text-emerald-600 font-semibold text-sm uppercase tracking-widest mb-3"
+            className="text-blue-900 font-semibold text-sm uppercase tracking-widest mb-3"
             style={{ fontFamily: "'Inter', sans-serif" }}
           >
             The Process
@@ -238,14 +239,14 @@ function HowItWorks() {
           {STEPS.map((step, i) => (
             <div
               key={i}
-              className="relative bg-gradient-to-b from-emerald-50/60 to-white border border-emerald-100 rounded-2xl p-7 flex flex-col gap-4 hover:shadow-lg hover:shadow-emerald-100 transition-all hover:-translate-y-1"
+              className="relative bg-gradient-to-b from-blue-50/60 to-white border border-blue-100 rounded-2xl p-7 flex flex-col gap-4 hover:shadow-lg hover:shadow-blue-100 transition-all hover:-translate-y-1"
             >
               <div className="flex items-start justify-between">
-                <div className="w-11 h-11 rounded-xl bg-emerald-600 flex items-center justify-center shadow-sm shadow-emerald-300">
+                <div className="w-11 h-11 rounded-xl bg-blue-900 flex items-center justify-center shadow-sm shadow-blue-300">
                   <step.icon className="w-5 h-5 text-white" />
                 </div>
                 <span
-                  className="text-4xl font-extrabold text-emerald-100 select-none"
+                  className="text-4xl font-extrabold text-blue-100 select-none"
                   style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
                 >
                   {step.number}
@@ -274,36 +275,36 @@ function HowItWorks() {
 const FEATURES = [
   {
     icon: User,
-    color: "from-emerald-500 to-teal-600",
-    bg: "bg-emerald-50",
+    color: "from-blue-900 to-blue-700",
+    bg: "bg-blue-50",
     title: "Student Profile Analysis",
     desc: "We consider your year, courses, GPA, skills, time availability, and career goals to build a complete academic snapshot.",
   },
   {
     icon: Star,
-    color: "from-teal-500 to-cyan-600",
-    bg: "bg-teal-50",
+    color: "from-blue-700 to-blue-600",
+    bg: "bg-blue-50",
     title: "Fit Score",
     desc: "Every opportunity gets a percentage fit score based on how closely it matches your current level and skill set.",
   },
   {
     icon: TrendingUp,
-    color: "from-green-500 to-emerald-600",
-    bg: "bg-green-50",
+    color: "from-blue-600 to-blue-800",
+    bg: "bg-blue-50",
     title: "Skill Gap Analysis",
     desc: "See exactly which skills you still need to acquire and get specific resources to learn them before applying.",
   },
   {
     icon: Brain,
-    color: "from-teal-500 to-emerald-600",
-    bg: "bg-teal-50",
+    color: "from-blue-700 to-blue-900",
+    bg: "bg-blue-50",
     title: "AI Roadmap",
     desc: "A personalized, time-aware plan that takes into account your semester schedule and career timeline.",
   },
   {
     icon: Bookmark,
-    color: "from-cyan-500 to-teal-500",
-    bg: "bg-cyan-50",
+    color: "from-blue-600 to-blue-700",
+    bg: "bg-blue-50",
     title: "Saved Opportunities",
     desc: "Bookmark projects, internships, hackathons, and more. Track application status and deadlines in one place.",
   },
@@ -311,11 +312,11 @@ const FEATURES = [
 
 function Features() {
   return (
-    <section className="py-24 px-6" style={{ background: "#f8f9ff" }}>
+    <section className="py-24 px-6" style={{ background: "#F8FAFF" }}>
       <div className="max-w-7xl mx-auto">
         <div className="text-center mb-16">
           <p
-            className="text-teal-600 font-semibold text-sm uppercase tracking-widest mb-3"
+            className="text-blue-700 font-semibold text-sm uppercase tracking-widest mb-3"
             style={{ fontFamily: "'Inter', sans-serif" }}
           >
             Platform Features
@@ -338,7 +339,7 @@ function Features() {
           {FEATURES.map((f, i) => (
             <div
               key={i}
-              className={`bg-white border border-border rounded-2xl p-7 flex flex-col gap-4 hover:shadow-xl hover:shadow-emerald-100/50 transition-all hover:-translate-y-1 ${
+              className={`bg-white border border-border rounded-2xl p-7 flex flex-col gap-4 hover:shadow-xl hover:shadow-blue-100/50 transition-all hover:-translate-y-1 ${
                 i === 4 ? "md:col-span-2 lg:col-span-1" : ""
               }`}
             >
@@ -378,7 +379,7 @@ function RecommendationCard() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
           <div>
             <p
-              className="text-emerald-600 font-semibold text-sm uppercase tracking-widest mb-3"
+              className="text-blue-900 font-semibold text-sm uppercase tracking-widest mb-3"
               style={{ fontFamily: "'Inter', sans-serif" }}
             >
               Live Example
@@ -403,8 +404,8 @@ function RecommendationCard() {
                 "AI explains the fit in plain English",
               ].map((point) => (
                 <div key={point} className="flex items-center gap-3">
-                  <div className="w-5 h-5 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                  <div className="w-5 h-5 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-blue-900" />
                   </div>
                   <span
                     className="text-gray-700 text-sm font-medium"
@@ -421,11 +422,11 @@ function RecommendationCard() {
           <div className="relative">
             <div
               className="absolute inset-0 rounded-3xl blur-2xl opacity-20 pointer-events-none"
-              style={{ background: "linear-gradient(135deg, #059669, #0d9488)" }}
+              style={{ background: "linear-gradient(135deg, #1E3A8A, #1D4ED8)" }}
             />
-            <div className="relative bg-white border border-emerald-100 rounded-2xl shadow-xl shadow-emerald-100 overflow-hidden">
+            <div className="relative bg-white border border-blue-100 rounded-2xl shadow-xl shadow-blue-100 overflow-hidden">
               {/* Card header */}
-              <div className="bg-gradient-to-r from-emerald-600 to-teal-600 px-6 py-5">
+              <div className="bg-gradient-to-r from-blue-900 to-blue-700 px-6 py-5">
                 <div className="flex items-start justify-between">
                   <div>
                     <span className="text-indigo-200 text-xs font-semibold uppercase tracking-widest">
@@ -451,11 +452,11 @@ function RecommendationCard() {
               {/* Card body */}
               <div className="px-6 py-5 flex flex-col gap-5">
                 {/* Why this fits */}
-                <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-4">
+                <div className="bg-blue-50 border border-blue-100 rounded-xl p-4">
                   <div className="flex items-center gap-2 mb-2">
-                    <Zap className="w-4 h-4 text-emerald-600" />
+                    <Zap className="w-4 h-4 text-blue-900" />
                     <span
-                      className="text-emerald-700 text-xs font-bold uppercase tracking-wider"
+                      className="text-blue-800 text-xs font-bold uppercase tracking-wider"
                       style={{ fontFamily: "'Inter', sans-serif" }}
                     >
                       Why this fits you
@@ -512,7 +513,7 @@ function RecommendationCard() {
                 </div>
 
                 {/* Action */}
-                <button className="w-full text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-700 transition-colors rounded-full py-3 flex items-center justify-center gap-2">
+                <button className="w-full text-sm font-semibold text-white bg-blue-900 hover:bg-blue-800 transition-colors rounded-full py-3 flex items-center justify-center gap-2">
                   View Opportunity
                   <ArrowRight className="w-4 h-4" />
                 </button>
@@ -520,7 +521,7 @@ function RecommendationCard() {
             </div>
 
             {/* Floating badge */}
-            <div className="absolute -bottom-4 -right-4 bg-white border border-emerald-100 shadow-lg rounded-xl px-4 py-3 flex items-center gap-2">
+            <div className="absolute -bottom-4 -right-4 bg-white border border-blue-100 shadow-lg rounded-xl px-4 py-3 flex items-center gap-2">
               <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
               <span
                 className="text-xs font-semibold text-gray-700"
@@ -543,7 +544,7 @@ const OPPORTUNITY_TYPES = [
 
 function OpportunityPills() {
   return (
-    <section className="py-14 px-6 border-y border-border overflow-hidden" style={{ background: "#f8f9ff" }}>
+    <section className="py-14 px-6 border-y border-border overflow-hidden" style={{ background: "#F8FAFF" }}>
       <div className="max-w-7xl mx-auto">
         <p
           className="text-center text-sm text-gray-400 font-medium mb-6"
@@ -555,7 +556,7 @@ function OpportunityPills() {
           {OPPORTUNITY_TYPES.map((type) => (
             <span
               key={type}
-              className="text-sm font-semibold text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-full px-5 py-2 hover:bg-emerald-100 transition-colors cursor-pointer"
+              className="text-sm font-semibold text-blue-800 bg-blue-50 border border-blue-100 rounded-full px-5 py-2 hover:bg-blue-100 transition-colors cursor-pointer"
               style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
             >
               {type}
@@ -575,11 +576,11 @@ function CTA() {
         className="absolute inset-0 pointer-events-none"
         style={{
           background:
-            "radial-gradient(ellipse 80% 60% at 50% 50%, rgba(5,150,105,0.12) 0%, transparent 70%)",
+            "radial-gradient(ellipse 80% 60% at 50% 50%, rgba(30,58,138,0.12) 0%, transparent 70%)",
         }}
       />
       <div className="relative max-w-3xl mx-auto text-center">
-        <div className="inline-flex items-center gap-2 bg-teal-50 border border-teal-100 text-teal-600 text-xs font-semibold uppercase tracking-wider px-4 py-2 rounded-full mb-8">
+        <div className="inline-flex items-center gap-2 bg-blue-50 border border-blue-100 text-blue-700 text-xs font-semibold uppercase tracking-wider px-4 py-2 rounded-full mb-8">
           <Sparkles className="w-3.5 h-3.5" />
           Start today — it's free for students
         </div>
@@ -591,7 +592,7 @@ function CTA() {
           Start building your CV with the{" "}
           <span
             style={{
-              background: "linear-gradient(135deg, #059669 0%, #0d9488 100%)",
+              background: "linear-gradient(135deg, #1E3A8A 0%, #1D4ED8 100%)",
               WebkitBackgroundClip: "text",
               WebkitTextFillColor: "transparent",
             }}
@@ -610,7 +611,7 @@ function CTA() {
 
         <button
           onClick={() => navigate("/signup")}
-          className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-lg px-9 py-4 rounded-full shadow-xl shadow-emerald-200 transition-all hover:shadow-emerald-300 hover:-translate-y-0.5"
+          className="inline-flex items-center gap-2 bg-blue-900 hover:bg-blue-800 text-white font-bold text-lg px-9 py-4 rounded-full shadow-xl shadow-blue-200 transition-all hover:shadow-blue-300 hover:-translate-y-0.5"
           style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
         >
           Create Profile
@@ -630,17 +631,17 @@ function CTA() {
 
 function Footer() {
   return (
-    <footer className="bg-gray-900 text-gray-400 px-6 py-12">
+    <footer className="bg-[#0D1B2A] text-gray-400 px-6 py-12">
       <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
         <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center">
+          <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-blue-900 to-blue-700 flex items-center justify-center">
             <Sparkles className="w-3.5 h-3.5 text-white" />
           </div>
           <span
             className="text-white font-extrabold text-lg"
             style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
           >
-            Skill<span className="text-emerald-400">+</span>
+            Skill<span className="text-blue-400">+</span>
           </span>
         </div>
         <p
@@ -683,6 +684,7 @@ export default function App() {
         <Route path="/" element={<HomePage />} />
         <Route path="/signup" element={<SignupPage />} />
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/profile" element={<ProfilePage />} />
         <Route path="/results" element={<ResultsPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
