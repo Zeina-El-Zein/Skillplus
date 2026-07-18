@@ -16,6 +16,8 @@ Status: Done
 - Created the log in page and connected it to `POST /auth/login`.
 - Stores the returned user information so `user_id` is included in the student profile request.
 - Added invalid-login and unavailable-backend error handling.
+- Added a `Forgot password?` link and a complete reset-request page.
+- Connected the reset form to the documented `POST /auth/forgot-password` frontend contract proposed for Member 2.
 
 ## 5.3 Build Student Profile Form
 
@@ -39,24 +41,35 @@ Status: Done
 
 Status: Done
 
-- Added an automated test for sign up, log in, profile submission and analysis results.
+- Added automated tests for sign up, log in, profile submission, analysis results and forgot-password requests.
 - Verified the exact profile and analysis request payloads.
 - Production build completed successfully.
+
+## Team Feedback Revision
+
+Status: Done
+
+- Replaced the green branding with the exact midnight-blue palette from the pinned Figma design.
+- Changed the sign-up sample name to the anonymous placeholder `Enter your full name`.
+- Added the `/forgot-password` route, form validation, API request, loading state, error state and privacy-safe success message.
+- Documented the missing backend dependency for password-reset email and token handling.
 
 Test result:
 
 ```text
 Test Files  1 passed (1)
-Tests       1 passed (1)
+Tests       2 passed (2)
 ```
 
 Build result:
 
 ```text
-1616 modules transformed
+1617 modules transformed
 Build completed successfully
 ```
 
 ## Integration Dependency
 
 The browser frontend requires all four backend tasks in one FastAPI app and CORS enabled for `http://localhost:5173`. The full integration test copy includes this final wiring.
+
+The forgot-password page also requires Member 2's backend to add `POST /auth/forgot-password`. The frontend sends `{ "email": "..." }` and expects a generic success message so the response does not reveal whether an email is registered.

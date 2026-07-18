@@ -5,13 +5,15 @@ import App from "./App";
 
 const user = {
   id: 1,
-  name: "Abdul Kader El Hakim",
-  email: "aie25@mail.aub.edu",
+  name: "Alex Morgan",
+  email: "alex.morgan@mail.aub.edu",
   role: "student",
 };
 
 describe("Member 5 complete student flow", () => {
   beforeEach(() => {
+    window.localStorage.clear();
+    vi.unstubAllGlobals();
     window.history.pushState({}, "", "/signup");
   });
 
@@ -97,5 +99,48 @@ describe("Member 5 complete student flow", () => {
       preferred_opportunity_type: "Internship",
     });
     expect(requests[3].body).toEqual({ year: 3, courses: 3, skills: 2 });
+  });
+
+  it("requests password reset instructions from the forgot-password page", async () => {
+    const requests: Array<{ path: string; body: unknown }> = [];
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = new URL(String(input));
+        const body = init?.body ? JSON.parse(String(init.body)) : null;
+        requests.push({ path: url.pathname, body });
+
+        if (url.pathname === "/auth/forgot-password") {
+          return Response.json({
+            message: "If an account exists, password reset instructions have been sent.",
+          });
+        }
+
+        return Response.json({ detail: "Not found" }, { status: 404 });
+      }),
+    );
+
+    window.history.pushState({}, "", "/login");
+    const browser = userEvent.setup();
+    render(<App />);
+
+    await browser.click(screen.getByRole("link", { name: /Forgot password/i }));
+    expect(
+      await screen.findByRole("heading", { name: /Reset your password/i }),
+    ).toBeInTheDocument();
+
+    await browser.type(screen.getByLabelText(/Email address/i), user.email);
+    await browser.click(screen.getByRole("button", { name: /Send reset link/i }));
+
+    expect(
+      await screen.findByText(/If an account exists for that email/i),
+    ).toBeInTheDocument();
+    expect(requests).toEqual([
+      {
+        path: "/auth/forgot-password",
+        body: { email: user.email },
+      },
+    ]);
   });
 });

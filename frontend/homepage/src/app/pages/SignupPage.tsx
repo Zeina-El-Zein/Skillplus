@@ -52,7 +52,7 @@ export default function SignupPage() {
             <TextInput
               value={name}
               onChange={(event) => setName(event.target.value)}
-              placeholder="Abdul Kader El Hakim"
+              placeholder="Enter your full name"
               autoComplete="name"
               required
             />
@@ -101,7 +101,7 @@ export default function SignupPage() {
           <button
             type="submit"
             disabled={loading}
-            className="inline-flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-300 text-white font-semibold px-6 py-3.5 rounded-full transition-colors"
+            className="inline-flex items-center justify-center gap-2 bg-blue-900 hover:bg-blue-800 disabled:bg-blue-300 text-white font-semibold px-6 py-3.5 rounded-full transition-colors"
           >
             {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowRight className="w-4 h-4" />}
             Create account
@@ -109,7 +109,7 @@ export default function SignupPage() {
 
           <p className="text-center text-sm text-gray-500">
             Already have an account?{" "}
-            <Link to="/login" className="font-semibold text-emerald-600 hover:text-emerald-700">
+            <Link to="/login" className="font-semibold text-blue-900 hover:text-blue-800">
               Log in
             </Link>
           </p>
