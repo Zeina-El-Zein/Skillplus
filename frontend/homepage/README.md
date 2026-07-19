@@ -12,7 +12,7 @@ Build the frontend pages and test the complete Feature 1 flow:
 - `/login`: Logs in using `POST /auth/login` and stores the returned user ID.
 - `/forgot-password`: Requests password reset instructions using `POST /auth/forgot-password`.
 - `/profile`: Sends the agreed student profile JSON to `POST /student-profile`.
-- `/results`: Displays level, strengths, missing skills and suggested next step from `POST /student/analyze`.
+- `/results`: Displays level, strengths, missing skills and suggested next step from `POST /student/analyze/{user_id}`.
 
 ## Design Feedback Update
 
@@ -68,15 +68,13 @@ The frontend route, validation, loading, error and success states are complete. 
 
 ## Analysis Request
 
-Member 4's endpoint currently expects counts. The frontend converts the profile arrays automatically:
+After the profile is saved, the frontend calls the integrated user-specific endpoint:
 
-```json
-{
-  "year": 3,
-  "courses": 3,
-  "skills": 2
-}
+```http
+POST /student/analyze/1
 ```
+
+There is no request body. The backend reads the saved profile's year, courses and skills, performs the analysis and stores the resulting level.
 
 ## Analysis Response
 

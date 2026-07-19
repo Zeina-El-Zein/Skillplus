@@ -32,8 +32,8 @@ Status: Done
 
 Status: Done
 
-- Converts `courses_taken` and `current_skills` into the counts required by Member 4.
-- Sends the analysis request to `POST /student/analyze`.
+- Sends the saved user's analysis request to the integrated `POST /student/analyze/{user_id}` endpoint.
+- Uses the integrated backend contract: the backend reads the saved course and skill arrays, so the frontend does not send a second analysis body.
 - Displays current level, strengths, missing skills, suggested next step and profile summary.
 - Supports both `missing` and `missing_skills` response names.
 
@@ -42,7 +42,7 @@ Status: Done
 Status: Done
 
 - Added automated tests for sign up, log in, profile submission, analysis results and forgot-password requests.
-- Verified the exact profile and analysis request payloads.
+- Verified the exact profile payload and integrated user-specific analysis URL.
 - Production build completed successfully.
 
 ## Team Feedback Revision
@@ -70,6 +70,6 @@ Build completed successfully
 
 ## Integration Dependency
 
-The browser frontend requires all four backend tasks in one FastAPI app and CORS enabled for `http://localhost:5173`. The full integration test copy includes this final wiring.
+The browser frontend requires all four backend tasks in one FastAPI app and CORS enabled for `http://localhost:5173`. The integrated `main` copy includes this final wiring.
 
 The forgot-password page also requires Member 2's backend to add `POST /auth/forgot-password`. The frontend sends `{ "email": "..." }` and expects a generic success message so the response does not reveal whether an email is registered.
