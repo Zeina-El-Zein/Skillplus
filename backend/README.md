@@ -4,6 +4,7 @@
 
 - PostgreSQL 17.10
 - psql that comes with PostgreSQL
+- Python 3.11+
 
 ### Step 1 — Install PostgreSQL
 
@@ -36,9 +37,11 @@ psql -U postgres -d skillplus -f backend/schema.sql
 
 ### Step 4 — Create the .env file
 
-Create a file named `.env` inside the `backend/` folder with one line:
+Create a file named `.env` inside the `backend/` folder with the following values:
 
+```env
 DATABASE_URL=postgresql://postgres:YOUR_PASSWORD@localhost:5432/skillplus
+FRONTEND_URL=http://localhost:5173
 
 Replace YOUR_PASSWORD with your local PostgreSQL password.
 Never commit this file — it is listed in .gitignore.
@@ -52,6 +55,7 @@ pip install -r requirements.txt
 - `users`: Stores user accounts for authentication.
 - `students`: Stores student profile information.
 - `opportunities`: Stores available opportunities.
+- `password_reset_tokens`: Stores hashed, temporary, one-time password reset tokens.
 
 ## Sample Data
 
@@ -68,6 +72,172 @@ The `opportunities` table comes pre-populated with five sample opportunities:
 - Member 2, who is working on authentication, depends on the `users` table.
 - Member 3, who is working on the Profile API, depends on the `students` table.
 - Member 4, who is working on the analysis logic, depends on the `students` table.
+
+## Authentication API Endpoints
+
+The backend provides four authentication endpoints:
+
+- `POST /auth/signup` creates a new user account.
+- `POST /auth/login` authenticates an existing user.
+- `POST /auth/forgot-password` creates a temporary password reset token.
+- `POST /auth/reset-password` changes the user's password using a valid reset token.
+
+### POST /auth/signup
+
+Creates a new user account.
+
+Example request:
+
+```json
+{
+  "name": "Firas Test",
+  "email": "firas.test@example.com",
+  "password": "OldPassword123"
+}
+```
+
+Example successful response:
+
+```json
+{
+  "message": "User created successfully",
+  "user": {
+    "id": 1,
+    "name": "Firas Test",
+    "email": "firas.test@example.com",
+    "role": "student"
+  }
+}
+```
+
+If the email is already registered, the endpoint returns:
+
+```json
+{
+  "detail": "Email already registered"
+}
+```
+
+### POST /auth/login
+
+Authenticates a user using their email and password.
+
+Example request:
+
+```json
+{
+  "email": "firas.test@example.com",
+  "password": "OldPassword123"
+}
+```
+
+Example successful response:
+
+```json
+{
+  "message": "Login successful",
+  "user": {
+    "id": 1,
+    "name": "Firas Test",
+    "email": "firas.test@example.com",
+    "role": "student"
+  }
+}
+```
+
+If the email or password is incorrect, the endpoint returns:
+
+```json
+{
+  "detail": "Invalid email or password"
+}
+```
+
+### POST /auth/forgot-password
+
+Creates a secure password reset token for the account associated with the submitted email.
+
+Example request:
+
+```json
+{
+  "email": "firas.test@example.com"
+}
+```
+
+Example response:
+
+```json
+{
+  "message": "If an account exists, password reset instructions have been sent."
+}
+```
+
+For security, the backend returns the same message whether the submitted email exists or not. This prevents users from discovering which email addresses have registered accounts.
+
+During local development, the password reset link is printed in the backend terminal:
+
+```text
+http://localhost:5173/reset-password?token=RESET_TOKEN
+```
+
+The reset token:
+
+- Expires after 30 minutes.
+- Can only be used once.
+- Is invalidated when a newer token is created.
+- Is hashed before being stored in the database.
+
+> The reset link is printed only for local development. Before deployment, it should be sent through an email service instead.
+
+### POST /auth/reset-password
+
+Changes the user's password using the token received in the password reset link.
+
+Example request:
+
+```json
+{
+  "token": "RESET_TOKEN_FROM_THE_LINK",
+  "new_password": "NewPassword456"
+}
+```
+
+Example successful response:
+
+```json
+{
+  "message": "Password reset successfully."
+}
+```
+
+If the token is invalid, expired, or already used, the endpoint returns:
+
+```json
+{
+  "detail": "Invalid or expired password reset token."
+}
+```
+
+After a successful password reset:
+
+- The old password no longer works.
+- The new password can be used to log in.
+- The reset token cannot be reused.
+
+### Password Reset Security
+
+The password reset implementation includes:
+
+- Secure random token generation.
+- SHA-256 hashing before storing reset tokens.
+- bcrypt hashing for user passwords.
+- A 30-minute expiration time.
+- One-time token use.
+- Invalidation of older active tokens.
+- A general response that does not reveal whether an email exists.
+
+The raw reset token is not stored in the database.
 
 ## Student Profile API Endpoints
 
@@ -227,6 +397,8 @@ The documentation page can be used to test:
 
 - `POST /auth/signup`
 - `POST /auth/login`
+- `POST /auth/forgot-password`
+- `POST /auth/reset-password`
 - `POST /student-profile`
 - `GET /student/profile/{user_id}`
 - `POST /student/analyze/{user_id}`
