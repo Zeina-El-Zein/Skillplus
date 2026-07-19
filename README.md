@@ -10,14 +10,12 @@ Checked in order — the first matching rule applies:
 
 1. `courses >= 8 AND skills >= 6` → **Advanced** (internship-ready)
 2. `courses >= 5 OR skills >= 4` → **Intermediate**
-3. `year == 1 AND courses < 5 AND skills < 3` → **Beginner**
-4. Otherwise → **Intermediate** (fallback — e.g. a Year 2+ student who
-   hasn't hit the Advanced or Beginner criteria; open question for the
-   team on whether this should behave differently)
+3. `courses < 5 AND skills < 3` → **Beginner** (any year)
+4. Otherwise → **Intermediate** (fallback — e.g. exactly 3 skills and fewer than 5 courses)
 
 Experience thresholds (rules 1 and 2) are checked **before** the
-year-based Beginner rule, so a Year 1 student with enough courses or
-skills is classified by their experience, not capped by their year.
+Beginner rule, so a student with enough courses or skills is classified
+by their experience.
 
 ### Endpoint
 
@@ -84,22 +82,15 @@ skills). Both returned the correct level and correctly wrote it to the
 logic (`test_classification.py`) also pass, including the Year-1-
 experienced edge case from Issue 1's acceptance criteria.
 
-### Known bug found during testing (flagged to Member 3)
+### Profile update behavior
 
-The `students` table has no `UNIQUE` constraint on `user_id`, so
-calling `POST /student-profile` twice for the same user creates two
-separate rows instead of updating the existing one. Since
-`GET /student/profile/{user_id}` (and this analyze endpoint) use
-`.fetchone()`, which row gets returned is arbitrary when duplicates
-exist. Suggested fix: add `UNIQUE(user_id)` to `students` in
-`schema.sql`, and change `POST /student-profile` to upsert
-(`INSERT ... ON CONFLICT (user_id) DO UPDATE ...`) instead of always
-inserting.
+The `students.user_id` column is unique, and `POST /student-profile`
+uses an upsert (`INSERT ... ON CONFLICT (user_id) DO UPDATE`). Submitting
+the form again updates the existing profile instead of creating a duplicate.
 
 ### Known open questions (raise with team)
 
 - The design doc lists 4 levels (Beginner, Intermediate, Ready-for-internships-with-gaps,
   Not-yet-ready); this implementation currently covers the 3 from Issue 1
   (Beginner/Intermediate/Advanced) as a placeholder.
-- Fallback case (rule 4 above) isn't explicitly defined by the original
-  thresholds and needs sign-off.
+- Fallback case (rule 4 above) rounds up to Intermediate according to the current team decision.

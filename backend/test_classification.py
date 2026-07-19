@@ -8,7 +8,7 @@ SAMPLE_PROFILES = [
     ("Advanced - clear case",          3, 9,  7, "Advanced"),
     ("Edge case - Year 1 but experienced", 1, 10, 7, "Advanced"),
     ("Edge case - Year 1, right at Advanced threshold", 1, 8, 6, "Advanced"),
-    ("Fallback - Year 2, low activity", 2, 2, 1, "Intermediate"),
+    ("Beginner - Year 2, low activity", 2, 2, 1, "Beginner"),
 ]
 
 if __name__ == "__main__":

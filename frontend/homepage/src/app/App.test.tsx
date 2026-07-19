@@ -39,7 +39,7 @@ describe("Member 5 complete student flow", () => {
           return Response.json({ message: "Student profile saved successfully", student_id: 4 });
         }
 
-        if (url.pathname === "/student/analyze") {
+        if (url.pathname === "/student/analyze/1") {
           return Response.json({
             level: "Intermediate",
             strengths: ["3 course(s) completed", "2 skill(s) acquired"],
@@ -85,7 +85,7 @@ describe("Member 5 complete student flow", () => {
       "/auth/signup",
       "/auth/login",
       "/student-profile",
-      "/student/analyze",
+      "/student/analyze/1",
     ]);
     expect(requests[2].body).toEqual({
       user_id: 1,
@@ -98,7 +98,7 @@ describe("Member 5 complete student flow", () => {
       available_time_per_week: 6,
       preferred_opportunity_type: "Internship",
     });
-    expect(requests[3].body).toEqual({ year: 3, courses: 3, skills: 2 });
+    expect(requests[3].body).toBeNull();
   });
 
   it("requests password reset instructions from the forgot-password page", async () => {
