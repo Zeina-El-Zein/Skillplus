@@ -20,6 +20,7 @@ import {
 import LoginPage from "./pages/LoginPage";
 import ForgotPasswordPage from "./pages/ForgotPasswordPage";
 import ProfilePage from "./pages/ProfilePage";
+import ResetPasswordPage from "./pages/ResetPasswordPage";
 import ResultsPage from "./pages/ResultsPage";
 import SignupPage from "./pages/SignupPage";
 
@@ -685,6 +686,7 @@ export default function App() {
         <Route path="/signup" element={<SignupPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route path="/profile" element={<ProfilePage />} />
         <Route path="/results" element={<ResultsPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />

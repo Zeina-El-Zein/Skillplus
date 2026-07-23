@@ -11,6 +11,7 @@ Build the frontend pages and test the complete Feature 1 flow:
 - `/signup`: Creates a student account using `POST /auth/signup`.
 - `/login`: Logs in using `POST /auth/login` and stores the returned user ID.
 - `/forgot-password`: Requests password reset instructions using `POST /auth/forgot-password`.
+- `/reset-password?token=...`: Changes the password using `POST /auth/reset-password`.
 - `/profile`: Sends the agreed student profile JSON to `POST /student-profile`.
 - `/results`: Displays level, strengths, missing skills and suggested next step from `POST /student/analyze/{user_id}`.
 
@@ -48,7 +49,25 @@ Expected success response:
 }
 ```
 
-The frontend route, validation, loading, error and success states are complete. Member 2's authentication backend still needs to implement this endpoint and its secure email/token reset process before real reset emails can be sent.
+The request page uses the privacy-safe response returned by the integrated authentication backend. During local development, the backend prints the reset link in its terminal.
+
+## Reset Password Request
+
+The `/reset-password` page reads the token from the reset link and sends:
+
+```http
+POST /auth/reset-password
+Content-Type: application/json
+```
+
+```json
+{
+  "token": "RESET_TOKEN_FROM_THE_LINK",
+  "new_password": "NewPassword456"
+}
+```
+
+The page validates the token, requires at least 6 password characters, confirms both password fields match, and handles loading, success, invalid-token and expired-token states.
 
 ## Student Profile Request
 
@@ -103,4 +122,4 @@ npm run test:run
 npm run build
 ```
 
-The automated tests verify the complete four-step student flow, the forgot-password page, API paths and exact request payloads.
+The automated tests verify the complete four-step student flow, forgot-password request, reset-password success, missing-token and expired-token states, API paths and exact request payloads.

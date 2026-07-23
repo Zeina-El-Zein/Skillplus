@@ -65,6 +65,13 @@ export function requestPasswordReset(email: string) {
   });
 }
 
+export function resetPassword(token: string, newPassword: string) {
+  return request<{ message: string }>("/auth/reset-password", {
+    method: "POST",
+    body: JSON.stringify({ token, new_password: newPassword }),
+  });
+}
+
 export function saveStudentProfile(profile: StudentProfile) {
   return request<ProfileResponse>("/student-profile", {
     method: "POST",
