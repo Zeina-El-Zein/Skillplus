@@ -143,4 +143,92 @@ describe("Member 5 complete student flow", () => {
       },
     ]);
   });
+
+  it("resets the password using the token from the reset link", async () => {
+    const token = "valid-password-reset-token-123456789";
+    const requests: Array<{ path: string; body: unknown }> = [];
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = new URL(String(input));
+        const body = init?.body ? JSON.parse(String(init.body)) : null;
+        requests.push({ path: url.pathname, body });
+
+        if (url.pathname === "/auth/reset-password") {
+          return Response.json({ message: "Password reset successfully." });
+        }
+
+        return Response.json({ detail: "Not found" }, { status: 404 });
+      }),
+    );
+
+    window.history.pushState({}, "", `/reset-password?token=${token}`);
+    const browser = userEvent.setup();
+    render(<App />);
+
+    expect(
+      await screen.findByRole("heading", { name: /Choose a new password/i }),
+    ).toBeInTheDocument();
+
+    await browser.type(screen.getByLabelText(/^New password/i), "newPassword123");
+    await browser.type(screen.getByLabelText(/Confirm new password/i), "newPassword123");
+    await browser.click(screen.getByRole("button", { name: /Reset password/i }));
+
+    expect(
+      await screen.findByText(/password has been changed successfully/i),
+    ).toBeInTheDocument();
+    expect(requests).toEqual([
+      {
+        path: "/auth/reset-password",
+        body: {
+          token,
+          new_password: "newPassword123",
+        },
+      },
+    ]);
+  });
+
+  it("rejects a reset link with no valid token", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    window.history.pushState({}, "", "/reset-password");
+
+    render(<App />);
+
+    expect(
+      await screen.findByText(/password reset link is invalid/i),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Request a new link/i })).toHaveAttribute(
+      "href",
+      "/forgot-password",
+    );
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("shows the backend message for an expired or used reset token", async () => {
+    const token = "expired-password-reset-token-123456";
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        Response.json(
+          { detail: "Invalid or expired password reset token." },
+          { status: 400 },
+        ),
+      ),
+    );
+
+    window.history.pushState({}, "", `/reset-password?token=${token}`);
+    const browser = userEvent.setup();
+    render(<App />);
+
+    await browser.type(screen.getByLabelText(/^New password/i), "newPassword123");
+    await browser.type(screen.getByLabelText(/Confirm new password/i), "newPassword123");
+    await browser.click(screen.getByRole("button", { name: /Reset password/i }));
+
+    expect(
+      await screen.findByRole("alert"),
+    ).toHaveTextContent("Invalid or expired password reset token.");
+  });
 });

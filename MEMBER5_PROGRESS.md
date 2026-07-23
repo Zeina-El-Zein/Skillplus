@@ -17,7 +17,9 @@ Status: Done
 - Stores the returned user information so `user_id` is included in the student profile request.
 - Added invalid-login and unavailable-backend error handling.
 - Added a `Forgot password?` link and a complete reset-request page.
-- Connected the reset form to the documented `POST /auth/forgot-password` frontend contract proposed for Member 2.
+- Connected the request form to `POST /auth/forgot-password`.
+- Added `/reset-password?token=...` and connected it to `POST /auth/reset-password`.
+- Added matching-password validation plus missing, invalid, expired, loading and success states.
 
 ## 5.3 Build Student Profile Form
 
@@ -41,7 +43,7 @@ Status: Done
 
 Status: Done
 
-- Added automated tests for sign up, log in, profile submission, analysis results and forgot-password requests.
+- Added automated tests for sign up, log in, profile submission, analysis results, forgot-password requests and password reset.
 - Verified the exact profile payload and integrated user-specific analysis URL.
 - Production build completed successfully.
 
@@ -52,19 +54,20 @@ Status: Done
 - Replaced the green branding with the exact midnight-blue palette from the pinned Figma design.
 - Changed the sign-up sample name to the anonymous placeholder `Enter your full name`.
 - Added the `/forgot-password` route, form validation, API request, loading state, error state and privacy-safe success message.
-- Documented the missing backend dependency for password-reset email and token handling.
+- Added the `/reset-password` route, token extraction, password confirmation and full response handling.
+- Matched Member 2's integrated `{ token, new_password }` request contract.
 
 Test result:
 
 ```text
 Test Files  1 passed (1)
-Tests       2 passed (2)
+Tests       5 passed (5)
 ```
 
 Build result:
 
 ```text
-1617 modules transformed
+1618 modules transformed
 Build completed successfully
 ```
 
@@ -72,4 +75,4 @@ Build completed successfully
 
 The browser frontend requires all four backend tasks in one FastAPI app and CORS enabled for `http://localhost:5173`. The integrated `main` copy includes this final wiring.
 
-The forgot-password page also requires Member 2's backend to add `POST /auth/forgot-password`. The frontend sends `{ "email": "..." }` and expects a generic success message so the response does not reveal whether an email is registered.
+The integrated backend provides both `POST /auth/forgot-password` and `POST /auth/reset-password`. For local testing, the backend prints the reset link in its terminal. A deployed version will still need an email provider to deliver that link automatically.
