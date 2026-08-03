@@ -19,6 +19,16 @@ const OPPORTUNITY_TYPES = [
   "Research",
 ];
 
+const MAJORS = [
+  "Computer and Communications Engineering",
+  "Computer Science",
+  "Electrical Engineering",
+  "Mechanical Engineering",
+  "Civil Engineering",
+  "Industrial Engineering",
+  "Chemical Engineering",
+  "Other",
+];
 function listToText(values: string[]) {
   return values.join(", ");
 }
@@ -106,12 +116,16 @@ export default function ProfilePage() {
         <form onSubmit={handleSubmit} className="flex flex-col gap-6">
           <div className="grid md:grid-cols-2 gap-5">
             <Field label="Major">
-              <TextInput
+              <SelectInput
                 value={form.major}
                 onChange={(event) => updateField("major", event.target.value)}
-                placeholder="CCE"
                 required
-              />
+              >
+                <option value="" disabled>Select your major</option>
+                {MAJORS.map((major) => (
+                  <option key={major} value={major}>{major}</option>
+                ))}
+              </SelectInput>
             </Field>
             <Field label="Year of study">
               <SelectInput
