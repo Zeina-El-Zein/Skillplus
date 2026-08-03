@@ -1,4 +1,3 @@
--- Skill+ Database Schema
 -- Run this file to set up the database locally
 -- Command: psql -U postgres -d skillplus -f backend/schema.sql
 
@@ -53,5 +52,6 @@ CREATE TABLE IF NOT EXISTS opportunities (
     deadline DATE,
     estimated_time VARCHAR(100),
     cv_benefit TEXT,
-    link VARCHAR(255)
+    link VARCHAR(255),
+    hours_per_week INTEGER
 );

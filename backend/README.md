@@ -35,13 +35,21 @@ From the main project folder, run:
 psql -U postgres -d skillplus -f backend/schema.sql
 ```
 
-### Step 4 — Create the .env file
+### Step 4 — Load the sample opportunities
+
+```bash
+psql -U postgres -d skillplus -f backend/seed.sql
+```
+
+This loads 22 sample opportunities. It is safe to re-run — it clears and reloads the opportunities table without touching users or students.
+
+### Step 5 — Create the .env file
 
 Create a file named `.env` inside the `backend/` folder with the following values:
 
 ```env
 DATABASE_URL=postgresql://postgres:YOUR_PASSWORD@localhost:5432/skillplus
-FRONTEND_URL=http://localhost:5173
+FRONTEND_URL=http://localhost:5173  ```
 
 Replace YOUR_PASSWORD with your local PostgreSQL password.
 Never commit this file — it is listed in .gitignore.
@@ -59,13 +67,9 @@ pip install -r requirements.txt
 
 ## Sample Data
 
-The `opportunities` table comes pre-populated with five sample opportunities:
-
-- Python Beginner Bootcamp — Beginner
-- Web Dev Hackathon — Intermediate
-- AI Research Internship — Advanced
-- Data Structures Workshop — Beginner
-- Software Engineering Internship — Advanced
+The `opportunities` table is populated by `seed.sql` with 22 opportunities:
+8 Beginner, 8 Intermediate, 6 Advanced, covering all majors in the
+contracts list plus opportunities marked `Any`.
 
 ## Notes
 
@@ -402,3 +406,35 @@ The documentation page can be used to test:
 - `POST /student-profile`
 - `GET /student/profile/{user_id}`
 - `POST /student/analyze/{user_id}`
+
+## Shared value lists (contracts)
+
+These values must be identical in the profile form dropdown, seed.sql,
+and the scoring logic. Do not add or rename values without telling the team.
+
+**Major** (students.major and opportunities.suitable_major):
+- Computer and Communications Engineering
+- Computer Science
+- Electrical Engineering
+- Mechanical Engineering
+- Civil Engineering
+- Industrial Engineering
+- Chemical Engineering
+- Other
+
+Opportunities may also use `Any` for suitable_major, meaning it suits every major.
+
+**Opportunity type / category** (students.preferred_opportunity_type and opportunities.category):
+Internship, Project, Workshop, Bootcamp, Hackathon, Competition, Mentorship, Research
+
+**Difficulty / level** (opportunities.difficulty and students.level):
+Beginner, Intermediate, Advanced
+
+
+## Schema changes
+
+If you already had the database before Feature 2, add the new column:
+
+```bash
+psql -U postgres -d skillplus -c "ALTER TABLE opportunities ADD COLUMN IF NOT EXISTS hours_per_week INTEGER;"
+```
