@@ -536,3 +536,5 @@ with status code:
 ```
 
 If the supplied ID is not an integer, FastAPI automatically returns a validation error with status code `422`.
+
+Expired opportunities are excluded from the public API. Opportunities with a deadline equal to or later than the current date, or with no deadline, are returned.

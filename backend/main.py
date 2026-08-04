@@ -236,7 +236,9 @@ def get_opportunities(
         FROM opportunities
     """
 
-    conditions = []
+    conditions = [
+    "(deadline IS NULL OR deadline >= CURRENT_DATE)"
+    ]
     parameters = {}
 
     if category:
@@ -288,6 +290,7 @@ def get_opportunity_by_id(
                 hours_per_week
             FROM opportunities
             WHERE id = :opportunity_id
+            AND (deadline IS NULL OR deadline >= CURRENT_DATE)
         """),
         {"opportunity_id": opportunity_id}
     ).mappings().first() #returns only the first matching row because an ID should identify only one opportunity
