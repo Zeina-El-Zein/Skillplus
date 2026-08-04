@@ -7,6 +7,7 @@ from auth import router as auth_router
 from database import get_db
 from schemas import StudentProfile
 from classification import analyze_profile
+from scoring import score_opportunity
 
 
 app = FastAPI(title="Skill+ Backend")
@@ -265,6 +266,15 @@ def get_student_recommendations(
                 detail="Student profile not found."
             )
 
+        if profile["level"] is None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=(
+                    "Student profile must be analyzed "
+                    "before recommendations."
+                )
+            )
+
         opportunities = db.execute(
             text("""
                 SELECT
@@ -288,21 +298,36 @@ def get_student_recommendations(
             """)
         ).mappings().all()
 
+        profile_dict = dict(profile)
+        recommendations = []
+
+        for opportunity in opportunities:
+            opportunity_dict = dict(opportunity)
+
+            match_score, reasons = score_opportunity(
+                profile_dict,
+                opportunity_dict
+            )
+
+            opportunity_dict["match_score"] = match_score
+            opportunity_dict["reasons"] = reasons
+
+            recommendations.append(opportunity_dict)
+
+        recommendations.sort(
+            key=lambda item: item["match_score"],
+            reverse=True
+        )
+
         return {
-            "message":
-                "Student profile and opportunities loaded successfully.",
-            "student": dict(profile),
-            "opportunities": [
-                dict(opportunity)
-                for opportunity in opportunities
-            ]
+            "user_id": user_id,
+            "recommendations": recommendations
         }
 
     except HTTPException:
         raise
 
-    except Exception as e:
-
+    except Exception:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Could not generate recommendations."
