@@ -538,3 +538,141 @@ with status code:
 If the supplied ID is not an integer, FastAPI automatically returns a validation error with status code `422`.
 
 Expired opportunities are excluded from the public API. Opportunities with a deadline equal to or later than the current date, or with no deadline, are returned.
+
+
+## Opportunity Scoring
+
+The recommendation engine ranks opportunities based on how well they match a student's profile.
+
+The scoring logic is implemented in:
+
+```
+backend/scoring.py
+```
+
+### Main Function
+
+```python
+score_opportunity(profile, opportunity)
+```
+
+Returns:
+
+```python
+(score, reasons)
+```
+
+where:
+
+- `score` is an integer between **0 and 100**
+- `reasons` is a list of strings explaining why the opportunity matches the student's profile
+
+Example:
+
+```python
+score, reasons = score_opportunity(profile, opportunity)
+
+print(score)
+# 90
+
+print(reasons)
+# [
+#     "Matches your major",
+#     "Suitable for your experience level",
+#     "Uses your Python skill",
+#     "Matches your preferred opportunity type"
+# ]
+```
+
+---
+
+### Scoring Weights
+
+| Criterion | Points |
+|-----------|-------:|
+| Exact major match | 30 |
+| Opportunity major = `Any` | 15 |
+| Exact difficulty match | 25 |
+| One-level difficulty difference | 10 |
+| Matching required skills | 5 points per skill (maximum 20) |
+| Matching interest | 15 |
+| Preferred opportunity type | 10 |
+
+Maximum possible score:
+
+```
+100 points
+```
+
+---
+
+### Difficulty Matching
+
+Difficulty levels are:
+
+- Beginner
+- Intermediate
+- Advanced
+
+Scoring:
+
+| Difference | Points |
+|------------|-------:|
+| Exact match | 25 |
+| One level apart | 10 |
+| Two levels apart | 0 |
+
+---
+
+### Skill Matching
+
+Each shared required skill contributes **5 points**.
+
+A maximum of **4 matching skills** are counted, for a maximum of **20 points**.
+
+---
+
+### Active Opportunities
+
+Expired opportunities are excluded before scoring.
+
+Use:
+
+```python
+filter_active_opportunities(opportunities)
+```
+
+Rules:
+
+- Deadline before today → expired
+- Deadline equal to today → active
+- No deadline (`None`) → active
+
+---
+
+### Missing Data
+
+The scoring functions safely handle missing or `None` values.
+
+Missing fields simply contribute zero points and do not raise exceptions.
+
+---
+
+### Unit Tests
+
+Scoring is tested in:
+
+```
+backend/test_scoring.py
+```
+
+The tests cover:
+
+- Perfect match
+- Zero match
+- Level mismatch
+- Missing or `None` fields
+- Missing keys
+- Skill score cap
+- Expired opportunity filtering
+- Opportunities with no deadline
