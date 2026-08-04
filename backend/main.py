@@ -1,4 +1,5 @@
 from fastapi import FastAPI, Depends, HTTPException, status
+from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 
@@ -7,8 +8,8 @@ from database import get_db
 from schemas import StudentProfile
 from classification import analyze_profile
 
+
 app = FastAPI(title="Skill+ Backend")
-from fastapi.middleware.cors import CORSMiddleware
 
 app.add_middleware(
     CORSMiddleware,
@@ -125,7 +126,7 @@ def get_student_profile(
                     career_goal,
                     available_time_per_week,
                     preferred_opportunity_type,
-                    level 
+                    level
                 FROM students
                 WHERE user_id = :user_id
             """),
@@ -162,13 +163,20 @@ def get_student_profile(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Could not retrieve student profile."
         )
-        
+
+
 @app.post("/student/analyze/{user_id}")
-def analyze_student(user_id: int, db: Session = Depends(get_db)):
+def analyze_student(
+    user_id: int,
+    db: Session = Depends(get_db)
+):
     try:
         profile = db.execute(
             text("""
-                SELECT year_of_study, courses_taken, current_skills
+                SELECT
+                    year_of_study,
+                    courses_taken,
+                    current_skills
                 FROM students
                 WHERE user_id = :user_id
             """),
@@ -185,12 +193,24 @@ def analyze_student(user_id: int, db: Session = Depends(get_db)):
         skills = len(profile["current_skills"] or [])
         year = profile["year_of_study"] or 0
 
-        result = analyze_profile(year=year, courses=courses, skills=skills)
+        result = analyze_profile(
+            year=year,
+            courses=courses,
+            skills=skills
+        )
 
         db.execute(
-            text("UPDATE students SET level = :level WHERE user_id = :user_id"),
-            {"level": result.level, "user_id": user_id}
+            text("""
+                UPDATE students
+                SET level = :level
+                WHERE user_id = :user_id
+            """),
+            {
+                "level": result.level,
+                "user_id": user_id
+            }
         )
+
         db.commit()
 
         return {
@@ -206,14 +226,92 @@ def analyze_student(user_id: int, db: Session = Depends(get_db)):
 
     except Exception:
         db.rollback()
+
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Could not analyze student profile."
         )
 
+
+@app.get("/student/{user_id}/recommendations")
+def get_student_recommendations(
+    user_id: int,
+    db: Session = Depends(get_db)
+):
+    try:
+        profile = db.execute(
+            text("""
+                SELECT
+                    id,
+                    user_id,
+                    major,
+                    year_of_study,
+                    courses_taken,
+                    current_skills,
+                    interests,
+                    career_goal,
+                    available_time_per_week,
+                    preferred_opportunity_type,
+                    level
+                FROM students
+                WHERE user_id = :user_id
+            """),
+            {"user_id": user_id}
+        ).mappings().fetchone()
+
+        if profile is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Student profile not found."
+            )
+
+        opportunities = db.execute(
+            text("""
+                SELECT
+                    id,
+                    title,
+                    category,
+                    suitable_major,
+                    suitable_year,
+                    difficulty,
+                    required_skills,
+                    skills_gained,
+                    deadline,
+                    estimated_time,
+                    cv_benefit,
+                    link,
+                    hours_per_week
+                FROM opportunities
+                WHERE deadline IS NULL
+                    OR deadline >= CURRENT_DATE
+                ORDER BY id
+            """)
+        ).mappings().all()
+
+        return {
+            "message":
+                "Student profile and opportunities loaded successfully.",
+            "student": dict(profile),
+            "opportunities": [
+                dict(opportunity)
+                for opportunity in opportunities
+            ]
+        }
+
+    except HTTPException:
+        raise
+
+    except Exception as e:
+
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Could not generate recommendations."
+        )
+
+
 @app.get("/opportunities")
 def get_opportunities(
-    category: str | None = None, #added optional filters 
+    category: str | None = None,
     difficulty: str | None = None,
     major: str | None = None,
     db: Session = Depends(get_db)
@@ -237,8 +335,9 @@ def get_opportunities(
     """
 
     conditions = [
-    "(deadline IS NULL OR deadline >= CURRENT_DATE)"
+        "(deadline IS NULL OR deadline >= CURRENT_DATE)"
     ]
+
     parameters = {}
 
     if category:
@@ -255,17 +354,21 @@ def get_opportunities(
         )
         parameters["major"] = major
 
-    if conditions:#combine several conditions together so that the endpoint supports having combinations of filters not just one filter
+    if conditions:
         query += " WHERE " + " AND ".join(conditions)
 
     query += " ORDER BY id"
-    #send the SQL query and retrieve the opportunities from the database
+
     opportunities = db.execute(
         text(query),
         parameters
     ).mappings().all()
-    #return each opportunity as a python dictionary 
-    return [dict(opportunity) for opportunity in opportunities]
+
+    return [
+        dict(opportunity)
+        for opportunity in opportunities
+    ]
+
 
 @app.get("/opportunities/{opportunity_id}")
 def get_opportunity_by_id(
@@ -290,10 +393,13 @@ def get_opportunity_by_id(
                 hours_per_week
             FROM opportunities
             WHERE id = :opportunity_id
-            AND (deadline IS NULL OR deadline >= CURRENT_DATE)
+                AND (
+                    deadline IS NULL
+                    OR deadline >= CURRENT_DATE
+                )
         """),
         {"opportunity_id": opportunity_id}
-    ).mappings().first() #returns only the first matching row because an ID should identify only one opportunity
+    ).mappings().first()
 
     if opportunity is None:
         raise HTTPException(
