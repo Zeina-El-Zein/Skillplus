@@ -438,3 +438,103 @@ If you already had the database before Feature 2, add the new column:
 ```bash
 psql -U postgres -d skillplus -c "ALTER TABLE opportunities ADD COLUMN IF NOT EXISTS hours_per_week INTEGER;"
 ```
+
+## Opportunities API
+
+The Opportunities API provides read-only access to the opportunities stored in the database.
+
+### Get all opportunities
+
+```http
+GET /opportunities
+```
+
+Returns all opportunities ordered by ID.
+
+Optional query parameters:
+
+- `category`
+- `difficulty`
+- `major`
+
+Examples:
+
+```http
+GET /opportunities?difficulty=Beginner
+GET /opportunities?category=Internship
+GET /opportunities?major=Computer Science
+GET /opportunities?category=Internship&difficulty=Advanced
+```
+
+When filtering by major, opportunities whose `suitable_major` is `Any` are also returned.
+
+Example request:
+
+```http
+GET /opportunities?difficulty=Beginner
+```
+
+Example response:
+
+```json
+[
+  {
+    "id": 1,
+    "title": "Python for Engineers Bootcamp",
+    "category": "Bootcamp",
+    "suitable_major": "Any",
+    "suitable_year": 1,
+    "difficulty": "Beginner",
+    "required_skills": [],
+    "skills_gained": [
+      "Python",
+      "Programming Basics"
+    ],
+    "deadline": "2026-10-15",
+    "estimated_time": "6 weeks",
+    "cv_benefit": "First programming credential",
+    "link": "https://example.com/opportunities/python-bootcamp",
+    "hours_per_week": 6
+  }
+]
+```
+
+If no opportunities match the supplied filters, the endpoint returns an empty list:
+
+```json
+[]
+```
+
+This is returned with status code `200 OK`.
+
+### Get an opportunity by ID
+
+```http
+GET /opportunities/{opportunity_id}
+```
+
+Example:
+
+```http
+GET /opportunities/1
+```
+
+Returns the opportunity whose ID matches `opportunity_id`.
+
+If the ID is a valid integer but the opportunity does not exist, the endpoint returns:
+
+```json
+{
+  "detail": "Opportunity not found"
+}
+```
+
+with status code:
+
+```text
+404 Not Found
+```
+
+If the supplied ID is not an integer, FastAPI automatically returns a validation error with status code `422`.
+
+Expired opportunities are excluded from the public API. Opportunities with a deadline equal to or later than the current date, or with no deadline, are returned.

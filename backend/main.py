@@ -210,3 +210,95 @@ def analyze_student(user_id: int, db: Session = Depends(get_db)):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Could not analyze student profile."
         )
+
+@app.get("/opportunities")
+def get_opportunities(
+    category: str | None = None, #added optional filters 
+    difficulty: str | None = None,
+    major: str | None = None,
+    db: Session = Depends(get_db)
+):
+    query = """
+        SELECT
+            id,
+            title,
+            category,
+            suitable_major,
+            suitable_year,
+            difficulty,
+            required_skills,
+            skills_gained,
+            deadline,
+            estimated_time,
+            cv_benefit,
+            link,
+            hours_per_week
+        FROM opportunities
+    """
+
+    conditions = [
+    "(deadline IS NULL OR deadline >= CURRENT_DATE)"
+    ]
+    parameters = {}
+
+    if category:
+        conditions.append("category = :category")
+        parameters["category"] = category
+
+    if difficulty:
+        conditions.append("difficulty = :difficulty")
+        parameters["difficulty"] = difficulty
+
+    if major:
+        conditions.append(
+            "(suitable_major = :major OR suitable_major = 'Any')"
+        )
+        parameters["major"] = major
+
+    if conditions:#combine several conditions together so that the endpoint supports having combinations of filters not just one filter
+        query += " WHERE " + " AND ".join(conditions)
+
+    query += " ORDER BY id"
+    #send the SQL query and retrieve the opportunities from the database
+    opportunities = db.execute(
+        text(query),
+        parameters
+    ).mappings().all()
+    #return each opportunity as a python dictionary 
+    return [dict(opportunity) for opportunity in opportunities]
+
+@app.get("/opportunities/{opportunity_id}")
+def get_opportunity_by_id(
+    opportunity_id: int,
+    db: Session = Depends(get_db)
+):
+    opportunity = db.execute(
+        text("""
+            SELECT
+                id,
+                title,
+                category,
+                suitable_major,
+                suitable_year,
+                difficulty,
+                required_skills,
+                skills_gained,
+                deadline,
+                estimated_time,
+                cv_benefit,
+                link,
+                hours_per_week
+            FROM opportunities
+            WHERE id = :opportunity_id
+            AND (deadline IS NULL OR deadline >= CURRENT_DATE)
+        """),
+        {"opportunity_id": opportunity_id}
+    ).mappings().first() #returns only the first matching row because an ID should identify only one opportunity
+
+    if opportunity is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Opportunity not found"
+        )
+
+    return dict(opportunity)
