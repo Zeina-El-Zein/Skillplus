@@ -47,6 +47,24 @@ Status: Done
 - Verified the exact profile payload and integrated user-specific analysis URL.
 - Production build completed successfully.
 
+## Feature 3 — Recommendations Page
+
+Status: Done
+
+- Added step 5 at `/recommendations` and connected it to `GET /student/{user_id}/recommendations`.
+- Uses the exact response contract implemented by Member 3: `{ user_id, recommendations }`.
+- Displays ranked cards with title, category, difficulty, deadline, estimated time, weekly time, CV benefit, application link, match score and reasons.
+- Added loading, empty, backend-error and retry states.
+- Keeps the logged-in `user_id` in local storage so a refresh reloads the correct recommendations.
+
+## Feature 1 Unhappy-Path Fixes
+
+Status: Done
+
+- Duplicate email now shows a clear explanation and a direct link to log in.
+- Empty sign-up and profile forms are rejected before any API request.
+- Refresh persistence is covered by an automated remount test using the saved user.
+
 ## Team Feedback Revision
 
 Status: Done
@@ -61,13 +79,13 @@ Test result:
 
 ```text
 Test Files  1 passed (1)
-Tests       5 passed (5)
+Tests       11 passed (11)
 ```
 
 Build result:
 
 ```text
-1618 modules transformed
+1619 modules transformed
 Build completed successfully
 ```
 
@@ -76,3 +94,5 @@ Build completed successfully
 The browser frontend requires all four backend tasks in one FastAPI app and CORS enabled for `http://localhost:5173`. The integrated `main` copy includes this final wiring.
 
 The integrated backend provides both `POST /auth/forgot-password` and `POST /auth/reset-password`. For local testing, the backend prints the reset link in its terminal. A deployed version will still need an email provider to deliver that link automatically.
+
+For Feature 3, merge the real `feature3-scoring-formula` work and `feature3/recommendations-endpoint` before the final PostgreSQL browser test. The Member 5 frontend is already matched to the endpoint's exact `GET /student/{user_id}/recommendations` contract.

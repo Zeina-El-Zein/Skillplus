@@ -21,6 +21,7 @@ import LoginPage from "./pages/LoginPage";
 import ForgotPasswordPage from "./pages/ForgotPasswordPage";
 import ProfilePage from "./pages/ProfilePage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
+import RecommendationsPage from "./pages/RecommendationsPage";
 import ResultsPage from "./pages/ResultsPage";
 import SignupPage from "./pages/SignupPage";
 
@@ -689,6 +690,7 @@ export default function App() {
         <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route path="/profile" element={<ProfilePage />} />
         <Route path="/results" element={<ResultsPage />} />
+        <Route path="/recommendations" element={<RecommendationsPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>

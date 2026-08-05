@@ -10,6 +10,47 @@ const user = {
   role: "student",
 };
 
+const recommendations = [
+  {
+    id: 8,
+    title: "Backend Development Internship",
+    category: "Internship",
+    suitable_major: "Computer and Communications Engineering",
+    suitable_year: 2,
+    difficulty: "Intermediate",
+    required_skills: ["Python", "SQL"],
+    skills_gained: ["FastAPI", "PostgreSQL"],
+    deadline: "2026-12-01",
+    estimated_time: "3 months",
+    cv_benefit: "Real production backend experience.",
+    link: "https://example.com/apply/backend",
+    hours_per_week: 15,
+    match_score: 90,
+    reasons: ["Matches your major", "Uses your Python skill"],
+  },
+  {
+    id: 1,
+    title: "Python for Engineers Bootcamp",
+    category: "Bootcamp",
+    suitable_major: "Any",
+    suitable_year: 1,
+    difficulty: "Beginner",
+    required_skills: [],
+    skills_gained: ["Python"],
+    deadline: null,
+    estimated_time: "6 weeks",
+    cv_benefit: "A first programming credential.",
+    link: "https://example.com/apply/python",
+    hours_per_week: 6,
+    match_score: 50,
+    reasons: ["Open to all majors"],
+  },
+];
+
+function storeUser() {
+  window.localStorage.setItem("skillplus_user", JSON.stringify(user));
+}
+
 describe("Member 5 complete student flow", () => {
   beforeEach(() => {
     window.localStorage.clear();
@@ -17,15 +58,15 @@ describe("Member 5 complete student flow", () => {
     window.history.pushState({}, "", "/signup");
   });
 
-  it("completes signup, login, profile submission and analysis results", async () => {
-    const requests: Array<{ path: string; body: unknown }> = [];
+  it("completes signup, login, profile analysis and ranked recommendations", async () => {
+    const requests: Array<{ path: string; method: string; body: unknown }> = [];
 
     vi.stubGlobal(
       "fetch",
       vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
         const url = new URL(String(input));
         const body = init?.body ? JSON.parse(String(init.body)) : null;
-        requests.push({ path: url.pathname, body });
+        requests.push({ path: url.pathname, method: init?.method || "GET", body });
 
         if (url.pathname === "/auth/signup") {
           return Response.json({ message: "User created successfully", user });
@@ -48,6 +89,10 @@ describe("Member 5 complete student flow", () => {
           });
         }
 
+        if (url.pathname === "/student/1/recommendations") {
+          return Response.json({ user_id: 1, recommendations });
+        }
+
         return Response.json({ detail: "Not found" }, { status: 404 });
       }),
     );
@@ -66,7 +111,10 @@ describe("Member 5 complete student flow", () => {
     await browser.click(screen.getByRole("button", { name: /Log in/i }));
 
     expect(await screen.findByRole("heading", { name: /Build your student profile/i })).toBeInTheDocument();
-    await browser.type(screen.getByLabelText(/Major/i), "CCE");
+    await browser.selectOptions(
+      screen.getByLabelText(/Major/i),
+      "Computer and Communications Engineering",
+    );
     await browser.selectOptions(screen.getByLabelText(/Year of study/i), "3");
     await browser.type(screen.getByLabelText(/Courses taken/i), "Data Structures, OOP, Signals");
     await browser.type(screen.getByLabelText(/Current skills/i), "Python, SQL");
@@ -78,18 +126,29 @@ describe("Member 5 complete student flow", () => {
 
     expect(await screen.findByRole("heading", { name: /Your analysis is ready/i })).toBeInTheDocument();
     expect(screen.getByText("Intermediate")).toBeInTheDocument();
-    expect(screen.getByText(/Keep building breadth/i)).toBeInTheDocument();
+    await browser.click(screen.getByRole("button", { name: /View matched opportunities/i }));
 
-    await waitFor(() => expect(requests).toHaveLength(4));
+    expect(
+      await screen.findByRole("heading", { name: /Your matched opportunities/i }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Backend Development Internship" })).toBeInTheDocument();
+    expect(screen.getByText("90%")).toBeInTheDocument();
+    expect(screen.getByText("Uses your Python skill")).toBeInTheDocument();
+    expect(
+      screen.getAllByRole("link", { name: /Apply for this opportunity/i })[0],
+    ).toHaveAttribute("href", "https://example.com/apply/backend");
+
+    await waitFor(() => expect(requests).toHaveLength(5));
     expect(requests.map((request) => request.path)).toEqual([
       "/auth/signup",
       "/auth/login",
       "/student-profile",
       "/student/analyze/1",
+      "/student/1/recommendations",
     ]);
     expect(requests[2].body).toEqual({
       user_id: 1,
-      major: "CCE",
+      major: "Computer and Communications Engineering",
       year_of_study: 3,
       courses_taken: ["Data Structures", "OOP", "Signals"],
       current_skills: ["Python", "SQL"],
@@ -98,7 +157,127 @@ describe("Member 5 complete student flow", () => {
       available_time_per_week: 6,
       preferred_opportunity_type: "Internship",
     });
-    expect(requests[3].body).toBeNull();
+    expect(requests[3]).toMatchObject({ method: "POST", body: null });
+    expect(requests[4]).toEqual({
+      path: "/student/1/recommendations",
+      method: "GET",
+      body: null,
+    });
+  });
+
+  it("shows a useful duplicate-email error and login path", async () => {
+    const fetchMock = vi.fn(async () =>
+      Response.json({ detail: "Email already registered" }, { status: 400 }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const browser = userEvent.setup();
+    render(<App />);
+
+    await browser.type(screen.getByLabelText(/Full name/i), user.name);
+    await browser.type(screen.getByLabelText(/Email address/i), user.email);
+    await browser.type(screen.getByLabelText(/^Password$/i), "password123");
+    await browser.type(screen.getByLabelText(/Confirm password/i), "password123");
+    await browser.click(screen.getByRole("button", { name: /Create account/i }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "An account with this email already exists.",
+    );
+    expect(screen.getByRole("link", { name: /Log in instead/i })).toHaveAttribute(
+      "href",
+      "/login",
+    );
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("rejects an empty signup form before calling the backend", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const browser = userEvent.setup();
+    render(<App />);
+    await browser.click(screen.getByRole("button", { name: /Create account/i }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Complete all required fields.");
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects an empty profile before calling the backend", async () => {
+    storeUser();
+    window.history.pushState({}, "", "/profile");
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const browser = userEvent.setup();
+    render(<App />);
+    await browser.click(screen.getByRole("button", { name: /Save and analyze profile/i }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Complete all required fields.");
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("renders the recommendations empty state", async () => {
+    storeUser();
+    window.history.pushState({}, "", "/recommendations");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json({ user_id: 1, recommendations: [] })),
+    );
+
+    render(<App />);
+
+    expect(await screen.findByText("No recommendations yet")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Update profile/i })).toHaveAttribute(
+      "href",
+      "/profile",
+    );
+  });
+
+  it("shows a recommendation error and retries successfully", async () => {
+    storeUser();
+    window.history.pushState({}, "", "/recommendations");
+    let attempt = 0;
+    const fetchMock = vi.fn(async () => {
+      attempt += 1;
+      return attempt === 1
+        ? Response.json({ detail: "Recommendations are temporarily unavailable." }, { status: 503 })
+        : Response.json({ user_id: 1, recommendations: [recommendations[0]] });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const browser = userEvent.setup();
+    render(<App />);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Recommendations are temporarily unavailable.",
+    );
+    await browser.click(screen.getByRole("button", { name: /Try again/i }));
+
+    expect(
+      await screen.findByRole("heading", { name: "Backend Development Internship" }),
+    ).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps the logged-in user after a page refresh", async () => {
+    storeUser();
+    window.history.pushState({}, "", "/recommendations");
+    const fetchMock = vi.fn(async () =>
+      Response.json({ user_id: 1, recommendations: [recommendations[0]] }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const firstRender = render(<App />);
+    expect(
+      await screen.findByRole("heading", { name: "Backend Development Internship" }),
+    ).toBeInTheDocument();
+    firstRender.unmount();
+
+    render(<App />);
+    expect(
+      await screen.findByRole("heading", { name: "Backend Development Internship" }),
+    ).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
   it("requests password reset instructions from the forgot-password page", async () => {
@@ -227,8 +406,8 @@ describe("Member 5 complete student flow", () => {
     await browser.type(screen.getByLabelText(/Confirm new password/i), "newPassword123");
     await browser.click(screen.getByRole("button", { name: /Reset password/i }));
 
-    expect(
-      await screen.findByRole("alert"),
-    ).toHaveTextContent("Invalid or expired password reset token.");
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Invalid or expired password reset token.",
+    );
   });
 });

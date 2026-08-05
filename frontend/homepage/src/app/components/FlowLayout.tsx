@@ -8,6 +8,7 @@ const STEPS = [
   { path: "/login", label: "Log in" },
   { path: "/profile", label: "Profile" },
   { path: "/results", label: "Results" },
+  { path: "/recommendations", label: "Matches" },
 ];
 
 type FlowLayoutProps = {
@@ -61,7 +62,7 @@ export default function FlowLayout({ children, showSteps = true }: FlowLayoutPro
       <main className="px-6 py-10">
         <div className="max-w-3xl mx-auto">
           {showSteps && (
-            <div className="grid grid-cols-4 mb-10">
+            <div className="grid grid-cols-5 mb-10">
               {STEPS.map((step, index) => (
                 <div key={step.path} className="relative flex flex-col items-center gap-2">
                   {index > 0 && (

@@ -1,10 +1,10 @@
-# Skill+ Frontend — Member 5 Profile Flow
+# Skill+ Frontend — Member 5 Student Flow
 
 ## Task
 
-Build the frontend pages and test the complete Feature 1 flow:
+Build the frontend pages and test the complete Feature 1 and Feature 3 flow:
 
-`Sign up -> Log in -> Fill profile -> Submit -> See analysis result`
+`Sign up -> Log in -> Fill profile -> See analysis -> View ranked recommendations`
 
 ## Pages
 
@@ -14,6 +14,7 @@ Build the frontend pages and test the complete Feature 1 flow:
 - `/reset-password?token=...`: Changes the password using `POST /auth/reset-password`.
 - `/profile`: Sends the agreed student profile JSON to `POST /student-profile`.
 - `/results`: Displays level, strengths, missing skills and suggested next step from `POST /student/analyze/{user_id}`.
+- `/recommendations`: Displays ranked opportunity cards from `GET /student/{user_id}/recommendations`.
 
 ## Design Feedback Update
 
@@ -106,6 +107,51 @@ There is no request body. The backend reads the saved profile's year, courses an
 }
 ```
 
+## Recommendations Request
+
+After the analysis results page, the frontend calls the real Feature 3 endpoint:
+
+```http
+GET /student/1/recommendations
+```
+
+There is no request body. The logged-in user's ID is restored from local storage, including after a browser refresh.
+
+## Recommendations Response
+
+```json
+{
+  "user_id": 1,
+  "recommendations": [
+    {
+      "id": 8,
+      "title": "Backend Development Internship (Local Startup)",
+      "category": "Internship",
+      "suitable_major": "Computer and Communications Engineering",
+      "suitable_year": 2,
+      "difficulty": "Intermediate",
+      "required_skills": ["Python", "SQL"],
+      "skills_gained": ["FastAPI", "REST APIs", "PostgreSQL"],
+      "deadline": "2026-12-01",
+      "estimated_time": "3 months",
+      "cv_benefit": "Real production backend experience.",
+      "link": "https://example.com/opportunities/backend-internship",
+      "hours_per_week": 15,
+      "match_score": 90,
+      "reasons": ["Matches your major", "Uses your Python skill"]
+    }
+  ]
+}
+```
+
+Each recommendation card displays the title, category, difficulty, deadline, estimated time, weekly time, CV benefit, match score, reasons and application link. The page also handles loading, empty, unavailable-backend and retry states.
+
+## Feature 1 Unhappy Paths
+
+- Duplicate email: shows a clear message and a direct log-in link.
+- Empty sign-up/profile form: blocks the request and identifies the missing required fields.
+- Refresh: restores the logged-in user and loads recommendations for the same `user_id`.
+
 ## Run the Frontend
 
 ```bash
@@ -122,4 +168,4 @@ npm run test:run
 npm run build
 ```
 
-The automated tests verify the complete four-step student flow, forgot-password request, reset-password success, missing-token and expired-token states, API paths and exact request payloads.
+The automated tests verify the complete five-step student flow, the exact recommendations endpoint and response, loading/empty/error/retry behavior, duplicate email, empty forms, refresh persistence, forgot-password requests, reset-password success, missing tokens, expired tokens, API paths and exact request payloads.
