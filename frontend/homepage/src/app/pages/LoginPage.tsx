@@ -40,7 +40,7 @@ export default function LoginPage() {
   return (
     <FlowLayout>
       <PageCard
-        eyebrow="Step 2 of 4"
+        eyebrow="Step 2 of 5"
         title="Welcome back"
         description="Log in before creating or reviewing your student profile."
       >

@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { ArrowLeft, Award, CheckCircle2, Lightbulb, Target } from "lucide-react";
+import { ArrowLeft, ArrowRight, Award, CheckCircle2, Lightbulb, Target } from "lucide-react";
 import { Navigate, useNavigate } from "react-router";
 import FlowLayout from "../components/FlowLayout";
 import PageCard from "../components/PageCard";
@@ -17,7 +17,7 @@ export default function ResultsPage() {
   return (
     <FlowLayout>
       <PageCard
-        eyebrow="Step 4 of 4"
+        eyebrow="Step 4 of 5"
         title="Your analysis is ready"
         description={`Skill+ analyzed ${profile.courses_taken.length} course(s) and ${profile.current_skills.length} skill(s) for ${user.name}.`}
       >
@@ -76,14 +76,24 @@ export default function ResultsPage() {
             </dl>
           </div>
 
-          <button
-            type="button"
-            onClick={() => navigate("/profile")}
-            className="inline-flex items-center justify-center gap-2 border border-blue-200 text-blue-800 hover:bg-blue-50 font-semibold px-6 py-3.5 rounded-full transition-colors"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Edit profile and analyze again
-          </button>
+          <div className="grid sm:grid-cols-2 gap-3">
+            <button
+              type="button"
+              onClick={() => navigate("/profile")}
+              className="inline-flex items-center justify-center gap-2 border border-blue-200 text-blue-800 hover:bg-blue-50 font-semibold px-6 py-3.5 rounded-full transition-colors"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Edit profile
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate("/recommendations")}
+              className="inline-flex items-center justify-center gap-2 bg-blue-900 hover:bg-blue-800 text-white font-semibold px-6 py-3.5 rounded-full transition-colors"
+            >
+              View matched opportunities
+              <ArrowRight className="w-4 h-4" />
+            </button>
+          </div>
         </div>
       </PageCard>
     </FlowLayout>

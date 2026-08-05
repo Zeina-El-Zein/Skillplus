@@ -74,21 +74,47 @@ export default function ProfilePage() {
     const courses = textToList(form.courses);
     const skills = textToList(form.skills);
     const interests = textToList(form.interests);
+    const year = Number(form.year);
+    const availableTime = Number(form.availableTime);
+
+    if (
+      !form.major.trim() ||
+      !form.year ||
+      !form.courses.trim() ||
+      !form.skills.trim() ||
+      !form.interests.trim() ||
+      !form.careerGoal.trim() ||
+      !form.availableTime ||
+      !form.opportunityType
+    ) {
+      setError("Complete all required fields.");
+      return;
+    }
 
     if (!courses.length || !skills.length || !interests.length) {
       setError("Add at least one course, skill and interest.");
       return;
     }
 
+    if (!Number.isInteger(year) || year < 1 || year > 5) {
+      setError("Select a valid year of study.");
+      return;
+    }
+
+    if (!Number.isInteger(availableTime) || availableTime < 1 || availableTime > 168) {
+      setError("Available hours must be a whole number between 1 and 168.");
+      return;
+    }
+
     const profile: StudentProfile = {
       user_id: user.id,
       major: form.major.trim(),
-      year_of_study: Number(form.year),
+      year_of_study: year,
       courses_taken: courses,
       current_skills: skills,
       interests,
       career_goal: form.careerGoal.trim(),
-      available_time_per_week: Number(form.availableTime),
+      available_time_per_week: availableTime,
       preferred_opportunity_type: form.opportunityType,
     };
 
@@ -109,11 +135,11 @@ export default function ProfilePage() {
   return (
     <FlowLayout>
       <PageCard
-        eyebrow="Step 3 of 4"
+        eyebrow="Step 3 of 5"
         title="Build your student profile"
         description="These fields exactly match the student profile API and database agreed by the team."
       >
-        <form onSubmit={handleSubmit} className="flex flex-col gap-6">
+        <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-6">
           <div className="grid md:grid-cols-2 gap-5">
             <Field label="Major">
               <SelectInput

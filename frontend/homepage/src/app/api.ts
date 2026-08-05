@@ -2,6 +2,7 @@ import type {
   AnalysisResult,
   AuthResponse,
   ProfileResponse,
+  RecommendationsResponse,
   StudentProfile,
 } from "./types";
 
@@ -99,4 +100,8 @@ export async function analyzeStudentProfile(profile: StudentProfile) {
     ...result,
     missing: result.missing || result.missing_skills || [],
   };
+}
+
+export function getStudentRecommendations(userId: number) {
+  return request<RecommendationsResponse>(`/student/${userId}/recommendations`);
 }
