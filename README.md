@@ -94,3 +94,161 @@ the form again updates the existing profile instead of creating a duplicate.
   Not-yet-ready); this implementation currently covers the 3 from Issue 1
   (Beginner/Intermediate/Advanced) as a placeholder.
 - Fallback case (rule 4 above) rounds up to Intermediate according to the current team decision.
+
+---
+
+## Recommendation Endpoint (Feature 3 Issue #29)
+
+The recommendation endpoint compares one analyzed student profile with all active opportunities in the database.
+
+Each active opportunity is passed to the scoring function in `scoring.py`. The endpoint adds the calculated match score and matching reasons, sorts the results from highest score to lowest, and returns the ranked opportunities.
+
+### Endpoint
+
+```http
+GET /student/{user_id}/recommendations
+```
+
+No request body is required. The `user_id` is provided in the URL.
+
+### Recommendation Flow
+
+1. Load the student profile using `user_id`.
+2. Return `404` if the student profile does not exist.
+3. Return `400` if the student profile has not been analyzed and its `level` is still `NULL`.
+4. Load all active opportunities.
+5. Exclude opportunities whose deadlines have passed.
+6. Call `score_opportunity(profile, opportunity)` for every active opportunity.
+7. Add `match_score` and `reasons` to every opportunity.
+8. Sort the recommendations from highest score to lowest.
+9. Return all active opportunities in ranked order.
+
+### Scoring Integration
+
+The endpoint imports:
+
+```python
+from scoring import score_opportunity
+```
+
+The scoring function is called using:
+
+```python
+match_score, reasons = score_opportunity(
+    profile,
+    opportunity
+)
+```
+
+The scoring function considers:
+
+- student major;
+- student level and opportunity difficulty;
+- matching skills;
+- student interests;
+- preferred opportunity type.
+
+### Example Successful Request
+
+```http
+GET /student/1/recommendations
+```
+
+### Example Successful Response
+
+```json
+{
+  "user_id": 1,
+  "recommendations": [
+    {
+      "id": 1,
+      "title": "Python Beginner Bootcamp",
+      "category": "Bootcamp",
+      "suitable_major": "Any",
+      "suitable_year": 1,
+      "difficulty": "Beginner",
+      "required_skills": [],
+      "skills_gained": [
+        "Python",
+        "Problem Solving"
+      ],
+      "deadline": null,
+      "estimated_time": null,
+      "cv_benefit": "Adds programming foundation to CV",
+      "link": "https://example.com/1",
+      "hours_per_week": null,
+      "match_score": 40,
+      "reasons": [
+        "Open to all majors",
+        "Suitable for your experience level"
+      ]
+    }
+  ]
+}
+```
+
+The real response may contain multiple recommendations. Results are ordered from highest `match_score` to lowest.
+
+### Unknown Student Response
+
+If no student profile exists for the supplied `user_id`, the endpoint returns status code `404`.
+
+```json
+{
+  "detail": "Student profile not found."
+}
+```
+
+### Unanalyzed Profile Response
+
+If the student profile exists but its `level` is still `NULL`, the endpoint returns status code `400`.
+
+```json
+{
+  "detail": "Student profile must be analyzed before recommendations."
+}
+```
+
+The frontend should call:
+
+```http
+POST /student/analyze/{user_id}
+```
+
+before requesting recommendations again.
+
+### Empty Opportunities Behavior
+
+If no active opportunities exist, the endpoint returns status code `200` with an empty recommendations list.
+
+```json
+{
+  "user_id": 1,
+  "recommendations": []
+}
+```
+
+### Result Count Decision
+
+For the current project stage, the endpoint returns all active opportunities, sorted from highest score to lowest.
+
+This can later be changed to the top 5 recommendations using:
+
+```python
+recommendations[:5]
+```
+
+### Testing Status
+
+The recommendations endpoint was tested through FastAPI Swagger against a local PostgreSQL database.
+
+Verified cases:
+
+- analyzed student returned `200`;
+- every opportunity included `match_score`;
+- every opportunity included `reasons`;
+- scores were returned in descending order: `40, 40, 20, 15, 10`;
+- unknown student returned `404`;
+- unanalyzed student profile returned `400`;
+- expired opportunities were excluded by the SQL query;
+- `NULL` student arrays are handled safely by the scoring function using `or []`.
