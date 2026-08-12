@@ -40,6 +40,14 @@ CREATE TABLE IF NOT EXISTS students (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS institutions (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER UNIQUE NOT NULL REFERENCES users(id),
+    institution_name VARCHAR(255) NOT NULL,
+    website VARCHAR(255),
+    description TEXT
+);
+
 CREATE TABLE IF NOT EXISTS opportunities (
     id SERIAL PRIMARY KEY,
     title VARCHAR(255) NOT NULL,

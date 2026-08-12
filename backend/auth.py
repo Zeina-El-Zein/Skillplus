@@ -64,7 +64,7 @@ def signup(user: SignupRequest, db: Session = Depends(get_db)):
             "name": user.name,
             "email": user.email,
             "password_hash": hashed_password,
-            "role": "student"
+            "role": user.role
         }
     ).fetchone()
 
