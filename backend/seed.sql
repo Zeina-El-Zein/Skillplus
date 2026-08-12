@@ -24,7 +24,7 @@ INSERT INTO opportunities (
 ('Python for Engineers Bootcamp', 'Bootcamp', 'Any', 1, 'Beginner',
  ARRAY[]::TEXT[], ARRAY['Python','Programming Basics'],
  '2026-10-15', '6 weeks', 6,
- 'First programming credential — the entry point for every technical role.',
+ 'First programming credential - the entry point for every technical role.',
  'https://example.com/opportunities/python-bootcamp'),
 
 ('Intro to Web Development Workshop', 'Workshop', 'Any', 1, 'Beginner',
@@ -68,7 +68,7 @@ INSERT INTO opportunities (
  'Computer and Communications Engineering', 2, 'Intermediate',
  ARRAY['Python','SQL'], ARRAY['FastAPI','REST APIs','PostgreSQL'],
  '2026-12-01', '3 months', 15,
- 'Real production backend experience — the strongest CV line at this level.',
+ 'Real production backend experience - the strongest CV line at this level.',
  'https://example.com/opportunities/backend-internship'),
 
 ('Data Structures and Algorithms Workshop Series', 'Workshop', 'Computer Science', 2, 'Intermediate',
@@ -99,7 +99,7 @@ INSERT INTO opportunities (
 ('AI Research Assistantship', 'Research', 'Computer Science', 3, 'Advanced',
  ARRAY['Python','Machine Learning'], ARRAY['PyTorch','Research Methods','Technical Writing'],
  '2026-12-20', '6 months', 15,
- 'Research experience and a potential publication — key for graduate applications.',
+ 'Research experience and a potential publication - key for graduate applications.',
  'https://example.com/opportunities/ai-research'),
 
 ('Software Engineering Internship (Regional Tech Company)', 'Internship',
@@ -122,7 +122,7 @@ INSERT INTO opportunities (
  'An industry-recognised certification, not just coursework.',
  'https://example.com/opportunities/cloud-certification'),
 
-('Robotics Team — Autonomous Systems Division', 'Competition', 'Mechanical Engineering', 3, 'Advanced',
+('Robotics Team - Autonomous Systems Division', 'Competition', 'Mechanical Engineering', 3, 'Advanced',
  ARRAY['MATLAB','C++'], ARRAY['ROS','Control Systems','Sensor Fusion'],
  '2026-10-30', 'One academic year', 14,
  'Long-term team project with a demonstrable autonomous robot.',
