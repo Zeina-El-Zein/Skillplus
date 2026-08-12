@@ -36,3 +36,9 @@ class StudentProfile(BaseModel):
     career_goal: str
     available_time_per_week: int
     preferred_opportunity_type: str
+
+class InstitutionProfile(BaseModel):
+    user_id: int
+    institution_name: str
+    website: str | None = None
+    description: str | None = None

@@ -5,7 +5,7 @@ from sqlalchemy import text
 
 from auth import router as auth_router
 from database import get_db
-from schemas import StudentProfile
+from schemas import StudentProfile, InstitutionProfile
 from classification import analyze_profile
 from scoring import score_opportunity
 
@@ -233,6 +233,108 @@ def analyze_student(
             detail="Could not analyze student profile."
         )
 
+@app.post("/institution-profile")
+def create_institution_profile(
+    profile: InstitutionProfile,
+    db: Session = Depends(get_db)
+):
+    try:
+        # Make sure the user exists and is actually an institution
+        user = db.execute(
+            text("""
+                SELECT id, role
+                FROM users
+                WHERE id = :user_id
+            """),
+            {"user_id": profile.user_id}
+        ).mappings().fetchone()
+
+        if user is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found."
+            )
+
+        if user["role"] != "institution":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Only institution accounts can create an institution profile."
+            )
+
+        saved_profile = db.execute(
+            text("""
+                INSERT INTO institutions (
+                    user_id,
+                    institution_name,
+                    website,
+                    description
+                )
+                VALUES (
+                    :user_id,
+                    :institution_name,
+                    :website,
+                    :description
+                )
+                ON CONFLICT (user_id)
+                DO UPDATE SET
+                    institution_name = EXCLUDED.institution_name,
+                    website = EXCLUDED.website,
+                    description = EXCLUDED.description
+                RETURNING id
+            """),
+            {
+                "user_id": profile.user_id,
+                "institution_name": profile.institution_name,
+                "website": profile.website,
+                "description": profile.description
+            }
+        ).fetchone()
+
+        db.commit()
+
+        return {
+            "message": "Institution profile saved successfully",
+            "institution_id": saved_profile.id
+        }
+
+    except HTTPException:
+        db.rollback()
+        raise
+
+    except Exception:
+        db.rollback()
+
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Could not save institution profile."
+        )
+
+@app.get("/institution/{user_id}")
+def get_institution_profile(
+    user_id: int,
+    db: Session = Depends(get_db)
+):
+    institution = db.execute(
+        text("""
+            SELECT
+                id,
+                user_id,
+                institution_name,
+                website,
+                description
+            FROM institutions
+            WHERE user_id = :user_id
+        """),
+        {"user_id": user_id}
+    ).mappings().fetchone()
+
+    if institution is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Institution profile not found."
+        )
+
+    return institution
 
 @app.get("/student/{user_id}/recommendations")
 def get_student_recommendations(
