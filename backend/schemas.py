@@ -1,10 +1,11 @@
 from pydantic import BaseModel, EmailStr, Field
-
+from typing import Literal
 
 class SignupRequest(BaseModel):
     name: str
     email: EmailStr
     password: str
+    role: Literal["student", "institution"]
 
 
 class LoginRequest(BaseModel):
