@@ -2,7 +2,7 @@ from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from sqlalchemy import text
-
+from authorization import require_institution
 from auth import router as auth_router
 from database import get_db
 from schemas import StudentProfile, InstitutionProfile
@@ -239,27 +239,8 @@ def create_institution_profile(
     db: Session = Depends(get_db)
 ):
     try:
-        # Make sure the user exists and is actually an institution
-        user = db.execute(
-            text("""
-                SELECT id, role
-                FROM users
-                WHERE id = :user_id
-            """),
-            {"user_id": profile.user_id}
-        ).mappings().fetchone()
-
-        if user is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="User not found."
-            )
-
-        if user["role"] != "institution":
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Only institution accounts can create an institution profile."
-            )
+        # Make sure the user exists and is actually an institution by calling the function from authorization.py
+        require_institution(profile.user_id, db)
 
         saved_profile = db.execute(
             text("""
