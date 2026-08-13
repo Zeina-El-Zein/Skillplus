@@ -61,5 +61,15 @@ CREATE TABLE IF NOT EXISTS opportunities (
     estimated_time VARCHAR(100),
     cv_benefit TEXT,
     link VARCHAR(255),
-    hours_per_week INTEGER
+    hours_per_week INTEGER,
+    institution_id INTEGER REFERENCES institutions(id),
+    source VARCHAR(20) DEFAULT 'seed'
+);
+
+CREATE TABLE IF NOT EXISTS roadmaps (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+    content JSONB NOT NULL,
+    source VARCHAR(20) NOT NULL DEFAULT 'fallback',
+    generated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
