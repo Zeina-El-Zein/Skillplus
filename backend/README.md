@@ -54,7 +54,7 @@ FRONTEND_URL=http://localhost:5173  ```
 Replace YOUR_PASSWORD with your local PostgreSQL password.
 Never commit this file — it is listed in .gitignore.
 
-### Step 5 — Install dependencies
+### Step 6 — Install dependencies
 
 pip install -r requirements.txt
 
@@ -64,6 +64,7 @@ pip install -r requirements.txt
 - `students`: Stores student profile information.
 - `opportunities`: Stores available opportunities.
 - `password_reset_tokens`: Stores hashed, temporary, one-time password reset tokens.
+- `institutions`: Stores institution profile information linked to institution user accounts.
 
 ## Sample Data
 
@@ -96,9 +97,11 @@ Example request:
 {
   "name": "Firas Test",
   "email": "firas.test@example.com",
-  "password": "OldPassword123"
+  "password": "OldPassword123",
+  "role": "student"
 }
 ```
+The role must be either `student` or `institution`. Any other value, or a missing role, is rejected.
 
 Example successful response:
 
@@ -406,6 +409,122 @@ The documentation page can be used to test:
 - `POST /student-profile`
 - `GET /student/profile/{user_id}`
 - `POST /student/analyze/{user_id}`
+- `POST /institution-profile`
+- `GET /institution/{user_id}`
+
+## Institution Accounts
+
+
+Skill+ supports two user roles:
+
+* `student`
+* `institution`
+
+When creating a new account through `POST /auth/signup`, the role must be explicitly provided.
+
+Example institution signup:
+
+```json
+{
+  "name": "Example Institution",
+  "email": "institution@example.com",
+  "password": "Password123",
+  "role": "institution"
+}
+```
+
+Only `student` and `institution` are accepted as roles.
+
+### POST /institution-profile
+
+Creates or updates an institution profile.
+
+Only users whose role is `institution` can use this endpoint.
+
+Example request:
+
+```json
+{
+  "user_id": 1,
+  "institution_name": "Example Institution",
+  "website": "https://example.com",
+  "description": "Example institution description"
+}
+```
+
+Example successful response:
+
+```json
+{
+  "message": "Institution profile saved successfully",
+  "institution_id": 1
+}
+```
+
+If the user exists but is not an institution, the endpoint returns:
+
+```json
+{
+  "detail": "Only institution accounts can perform this action."
+}
+```
+
+with status code `403 Forbidden`.
+
+If the user does not exist, the endpoint returns:
+
+```json
+{
+  "detail": "User not found."
+}
+```
+
+with status code `404 Not Found`.
+
+If a profile already exists for the same `user_id`, the existing institution profile is updated instead of creating a duplicate.
+
+### GET /institution/{user_id}
+
+Retrieves the institution profile associated with the specified user ID.
+
+Example request:
+
+```text
+GET /institution/1
+```
+
+Example successful response:
+
+```json
+{
+  "id": 1,
+  "user_id": 1,
+  "institution_name": "Example Institution",
+  "website": "https://example.com",
+  "description": "Example institution description"
+}
+```
+
+If no institution profile exists for the specified user, the endpoint returns:
+
+```json
+{
+  "detail": "Institution profile not found."
+}
+```
+
+with status code `404 Not Found`.
+
+### Institution Authorization
+
+Institution-only backend actions use the reusable `require_institution()` authorization check.
+
+The check verifies that the supplied user exists and has the `institution` role.
+
+* A nonexistent user is rejected with `404 Not Found`.
+* A user whose role is not `institution` is rejected with `403 Forbidden`.
+* An institution account is allowed to continue with the requested institution-only action.
+
 
 ## Shared value lists (contracts)
 
@@ -438,6 +557,13 @@ If you already had the database before Feature 2, add the new column:
 ```bash
 psql -U postgres -d skillplus -c "ALTER TABLE opportunities ADD COLUMN IF NOT EXISTS hours_per_week INTEGER;"
 ```
+
+If your local database was created before institution accounts were added, run:
+
+```bash
+psql -U postgres -d skillplus -f backend/schema.sql
+```
+This creates the institutions table if it does not already exist. The database does not need to be recreated.
 
 ## Opportunities API
 
