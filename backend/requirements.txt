@@ -29,3 +29,4 @@ typing-inspection==0.4.2
 typing_extensions==4.16.0
 uvicorn==0.50.2
 pytest==9.1.1
+google-genai

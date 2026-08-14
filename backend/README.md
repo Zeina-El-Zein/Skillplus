@@ -1,97 +1,188 @@
-# Skill+ Backend — Database Setup
+# Skill+ Backend
+
+Backend for Skill+, a student opportunity recommendation platform.
+
+The backend is built with FastAPI and PostgreSQL and supports:
+
+- user authentication;
+- student profiles and level analysis;
+- institution accounts;
+- opportunity browsing;
+- opportunity recommendation scoring;
+- institution-submitted opportunities;
+- AI-assisted opportunity extraction;
+- AI-generated student roadmaps with rule-based fallback and caching.
+
+---
+
+# Database Setup
 
 ## Requirements
 
 - PostgreSQL 17.10
-- psql that comes with PostgreSQL
+- `psql`
 - Python 3.11+
 
-### Step 1 — Install PostgreSQL
+---
+
+## Step 1 — Install PostgreSQL
 
 Install PostgreSQL on your computer.
 
-### Step 2 — Create the database
+---
 
-Open your terminal and run:
+## Step 2 — Create the database
+
+Open a terminal and run:
 
 ```bash
 psql -U postgres
 ```
 
-Then, inside psql, run:
+Inside PostgreSQL:
 
 ```sql
 CREATE DATABASE skillplus;
 \q
 ```
 
-### Step 3 — Run the schema file
+---
 
-This creates all the required tables automatically.
+## Step 3 — Run the schema
 
-From the main project folder, run:
+From the main project folder:
 
 ```bash
 psql -U postgres -d skillplus -f backend/schema.sql
 ```
 
-### Step 4 — Load the sample opportunities
+The schema creates the required database tables.
+
+---
+
+## Step 4 — Load sample opportunities
+
+Run:
 
 ```bash
 psql -U postgres -d skillplus -f backend/seed.sql
 ```
 
-This loads 22 sample opportunities. It is safe to re-run — it clears and reloads the opportunities table without touching users or students.
+The seed file loads the curated sample opportunities used by the recommendation system.
 
-### Step 5 — Create the .env file
+It can be re-run when the team needs to reset the sample opportunity data.
 
-Create a file named `.env` inside the `backend/` folder with the following values:
+---
+
+## Step 5 — Create the `.env` file
+
+Create:
+
+```text
+backend/.env
+```
+
+Example:
 
 ```env
 DATABASE_URL=postgresql://postgres:YOUR_PASSWORD@localhost:5432/skillplus
-FRONTEND_URL=http://localhost:5173  ```
+GEMINI_API_KEY=YOUR_GEMINI_API_KEY
+```
 
-Replace YOUR_PASSWORD with your local PostgreSQL password.
-Never commit this file — it is listed in .gitignore.
+Replace:
 
-### Step 6 — Install dependencies
+```text
+YOUR_PASSWORD
+```
 
+with your local PostgreSQL password.
+
+Replace:
+
+```text
+YOUR_GEMINI_API_KEY
+```
+
+with your Gemini API key from Google AI Studio.
+
+Never commit `.env`.
+
+The file is excluded through `.gitignore`.
+
+---
+
+## Step 6 — Install dependencies
+
+Open a terminal inside `backend/` and run:
+
+```bash
 pip install -r requirements.txt
+```
 
-## Database Tables
+---
 
-- `users`: Stores user accounts for authentication.
-- `students`: Stores student profile information.
-- `opportunities`: Stores available opportunities.
-- `password_reset_tokens`: Stores hashed, temporary, one-time password reset tokens.
-- `institutions`: Stores institution profile information linked to institution user accounts.
+# Database Tables
 
-## Sample Data
+The backend currently uses the following tables:
 
-The `opportunities` table is populated by `seed.sql` with 22 opportunities:
-8 Beginner, 8 Intermediate, 6 Advanced, covering all majors in the
-contracts list plus opportunities marked `Any`.
+- `users` — user accounts and roles;
+- `password_reset_tokens` — secure temporary password-reset tokens;
+- `students` — student profiles and analyzed levels;
+- `institutions` — institution profiles linked to institution users;
+- `opportunities` — seed and institution-submitted opportunities;
+- `roadmaps` — cached student roadmaps.
 
-## Notes
+---
 
-- Member 2, who is working on authentication, depends on the `users` table.
-- Member 3, who is working on the Profile API, depends on the `students` table.
-- Member 4, who is working on the analysis logic, depends on the `students` table.
+# User Roles
 
-## Authentication API Endpoints
+Skill+ supports two user roles:
 
-The backend provides four authentication endpoints:
+```text
+student
+institution
+```
 
-- `POST /auth/signup` creates a new user account.
-- `POST /auth/login` authenticates an existing user.
-- `POST /auth/forgot-password` creates a temporary password reset token.
-- `POST /auth/reset-password` changes the user's password using a valid reset token.
+The role is selected during signup.
 
-### POST /auth/signup
+Institution-only actions use the reusable:
 
-Creates a new user account.
+```python
+require_institution(user_id, db)
+```
 
-Example request:
+function from:
+
+```text
+backend/authorization.py
+```
+
+It provides the following behavior:
+
+- nonexistent user → `404 Not Found`;
+- user exists but is not an institution → `403 Forbidden`;
+- institution user → request may continue.
+
+---
+
+# Authentication API
+
+The authentication endpoints are:
+
+```text
+POST /auth/signup
+POST /auth/login
+POST /auth/forgot-password
+POST /auth/reset-password
+```
+
+---
+
+## POST `/auth/signup`
+
+Creates a user.
+
+Example:
 
 ```json
 {
@@ -101,9 +192,15 @@ Example request:
   "role": "student"
 }
 ```
-The role must be either `student` or `institution`. Any other value, or a missing role, is rejected.
 
-Example successful response:
+The role must be either:
+
+```text
+student
+institution
+```
+
+Example response:
 
 ```json
 {
@@ -117,7 +214,7 @@ Example successful response:
 }
 ```
 
-If the email is already registered, the endpoint returns:
+Duplicate email:
 
 ```json
 {
@@ -125,11 +222,11 @@ If the email is already registered, the endpoint returns:
 }
 ```
 
-### POST /auth/login
+---
 
-Authenticates a user using their email and password.
+## POST `/auth/login`
 
-Example request:
+Example:
 
 ```json
 {
@@ -138,7 +235,7 @@ Example request:
 }
 ```
 
-Example successful response:
+Successful response:
 
 ```json
 {
@@ -152,7 +249,7 @@ Example successful response:
 }
 ```
 
-If the email or password is incorrect, the endpoint returns:
+Invalid login:
 
 ```json
 {
@@ -160,11 +257,11 @@ If the email or password is incorrect, the endpoint returns:
 }
 ```
 
-### POST /auth/forgot-password
+---
 
-Creates a secure password reset token for the account associated with the submitted email.
+## POST `/auth/forgot-password`
 
-Example request:
+Example:
 
 ```json
 {
@@ -172,7 +269,7 @@ Example request:
 }
 ```
 
-Example response:
+Response:
 
 ```json
 {
@@ -180,28 +277,28 @@ Example response:
 }
 ```
 
-For security, the backend returns the same message whether the submitted email exists or not. This prevents users from discovering which email addresses have registered accounts.
+For security, the response does not reveal whether the supplied email exists.
 
-During local development, the password reset link is printed in the backend terminal:
+During local development, the reset link is printed in the backend terminal.
+
+Example:
 
 ```text
 http://localhost:5173/reset-password?token=RESET_TOKEN
 ```
 
-The reset token:
+The token:
 
-- Expires after 30 minutes.
-- Can only be used once.
-- Is invalidated when a newer token is created.
-- Is hashed before being stored in the database.
+- expires after 30 minutes;
+- is one-time use;
+- is invalidated when a newer token is created;
+- is hashed before being stored.
 
-> The reset link is printed only for local development. Before deployment, it should be sent through an email service instead.
+---
 
-### POST /auth/reset-password
+## POST `/auth/reset-password`
 
-Changes the user's password using the token received in the password reset link.
-
-Example request:
+Example:
 
 ```json
 {
@@ -210,7 +307,7 @@ Example request:
 }
 ```
 
-Example successful response:
+Successful response:
 
 ```json
 {
@@ -218,7 +315,7 @@ Example successful response:
 }
 ```
 
-If the token is invalid, expired, or already used, the endpoint returns:
+Invalid/expired token:
 
 ```json
 {
@@ -226,41 +323,35 @@ If the token is invalid, expired, or already used, the endpoint returns:
 }
 ```
 
-After a successful password reset:
+Password-reset security includes:
 
-- The old password no longer works.
-- The new password can be used to log in.
-- The reset token cannot be reused.
+- secure random token generation;
+- SHA-256 token hashing;
+- bcrypt password hashing;
+- 30-minute expiry;
+- one-time token use;
+- invalidation of older active tokens;
+- account-enumeration protection.
 
-### Password Reset Security
+---
 
-The password reset implementation includes:
+# Student Profile API
 
-- Secure random token generation.
-- SHA-256 hashing before storing reset tokens.
-- bcrypt hashing for user passwords.
-- A 30-minute expiration time.
-- One-time token use.
-- Invalidation of older active tokens.
-- A general response that does not reveal whether an email exists.
+The student profile endpoints are:
 
-The raw reset token is not stored in the database.
+```text
+POST /student-profile
+GET /student/profile/{user_id}
+POST /student/analyze/{user_id}
+```
 
-## Student Profile API Endpoints
+---
 
-The backend provides three endpoints for student profiles:
+## POST `/student-profile`
 
-- `POST /student-profile` saves or updates a student profile (one profile per user).
-- `GET /student/profile/{user_id}` retrieves an existing student profile.
-- `POST /student/analyze/{user_id}` analyzes the profile and saves the level.
+Creates or updates one profile per student user.
 
-### POST /student-profile
-
-This endpoint saves student information in the `students` table.
-
-The `user_id` must belong to an existing user created using the signup endpoint.
-
-Example request:
+Example:
 
 ```json
 {
@@ -285,7 +376,7 @@ Example request:
 }
 ```
 
-Example successful response:
+Response:
 
 ```json
 {
@@ -294,27 +385,33 @@ Example successful response:
 }
 ```
 
-If the `user_id` does not exist, the endpoint returns:
+The endpoint uses an upsert, so resubmitting the profile updates the existing row instead of creating a duplicate.
 
-```json
-{
-  "detail": "User not found. Please use an existing user_id."
-}
+### Roadmap cache invalidation
+
+A roadmap depends on the student's profile.
+
+Therefore, when the profile is updated through:
+
+```text
+POST /student-profile
 ```
 
-### GET /student/profile/{user_id}
+any cached roadmap for that user is deleted.
 
-This endpoint retrieves the saved student profile for a specific user.
+A later roadmap request will then use the updated profile.
 
-The value written after `/student/profile/` is the user ID.
+---
 
-Example request:
+## GET `/student/profile/{user_id}`
+
+Example:
 
 ```text
 GET /student/profile/2
 ```
 
-Example successful response:
+Example response:
 
 ```json
 {
@@ -341,118 +438,91 @@ Example successful response:
 }
 ```
 
-If no profile exists for the given user, the endpoint returns:
+Missing profile:
 
 ```json
 {
   "detail": "Student profile not found."
 }
 ```
-Note: `level` is `null` until the profile has been analyzed at least
-once with `POST /student/analyze/{user_id}`.
-### POST /student/analyze/{user_id}
 
-Analyzes the saved profile using the classification rules, saves the
-resulting level in the students table, and returns it with details.
+The `level` is `null` until analysis has been performed.
 
-Example request:
+---
 
-    POST /student/analyze/2
+# Student Level Classification
 
-Example successful response:
-
-    {
-      "user_id": 2,
-      "level": "Beginner",
-      "strengths": ["2 course(s) completed", "2 skill(s) acquired"],
-      "missing": ["3 more course(s) to reach Intermediate",
-                  "1 more skill(s) to reach Intermediate"],
-      "next_step": "Focus on foundational courses and building your first skills."
-    }
-
-If no profile exists for the given user, it returns:
-
-    {"detail": "Student profile not found."}
-
-Classification rules (first match wins, any year of study):
-- 8+ courses AND 6+ skills → Advanced
-- 5+ courses OR 4+ skills → Intermediate
-- fewer than 5 courses AND fewer than 3 skills → Beginner
-- otherwise → Intermediate
-
-## Running the Backend
-
-Open a terminal inside the `backend` folder and run:
-
-```bash
-python -m uvicorn main:app --reload
-```
-
-The backend will run at:
+Endpoint:
 
 ```text
-http://127.0.0.1:8000
+POST /student/analyze/{user_id}
 ```
 
-Open the FastAPI documentation at:
+No request body is required.
+
+The endpoint loads the existing student profile, analyzes it, and stores the resulting level.
+
+Current classification rules are evaluated in order:
+
+1. `courses >= 8 AND skills >= 6` → `Advanced`
+2. `courses >= 5 OR skills >= 4` → `Intermediate`
+3. `courses < 5 AND skills < 3` → `Beginner`
+4. otherwise → `Intermediate`
+
+Example:
 
 ```text
-http://127.0.0.1:8000/docs
+POST /student/analyze/2
 ```
 
-The documentation page can be used to test:
-
-- `POST /auth/signup`
-- `POST /auth/login`
-- `POST /auth/forgot-password`
-- `POST /auth/reset-password`
-- `POST /student-profile`
-- `GET /student/profile/{user_id}`
-- `POST /student/analyze/{user_id}`
-- `POST /institution-profile`
-- `GET /institution/{user_id}`
-
-## Institution Accounts
-
-
-Skill+ supports two user roles:
-
-* `student`
-* `institution`
-
-When creating a new account through `POST /auth/signup`, the role must be explicitly provided.
-
-Example institution signup:
+Response:
 
 ```json
 {
-  "name": "Example Institution",
-  "email": "institution@example.com",
-  "password": "Password123",
-  "role": "institution"
+  "user_id": 2,
+  "level": "Beginner",
+  "strengths": [
+    "2 course(s) completed",
+    "2 skill(s) acquired"
+  ],
+  "missing": [
+    "3 more course(s) to reach Intermediate",
+    "1 more skill(s) to reach Intermediate"
+  ],
+  "next_step": "Focus on foundational courses and building your first skills."
 }
 ```
 
-Only `student` and `institution` are accepted as roles.
-
-### POST /institution-profile
-
-Creates or updates an institution profile.
-
-Only users whose role is `institution` can use this endpoint.
-
-Example request:
+Missing profile:
 
 ```json
 {
-  "user_id": 1,
+  "detail": "Student profile not found."
+}
+```
+
+---
+
+# Institution Accounts
+
+## POST `/institution-profile`
+
+Creates or updates an institution profile.
+
+Only institution users are allowed.
+
+Example:
+
+```json
+{
+  "user_id": 3,
   "institution_name": "Example Institution",
   "website": "https://example.com",
   "description": "Example institution description"
 }
 ```
 
-Example successful response:
+Response:
 
 ```json
 {
@@ -461,7 +531,7 @@ Example successful response:
 }
 ```
 
-If the user exists but is not an institution, the endpoint returns:
+Student user:
 
 ```json
 {
@@ -469,9 +539,13 @@ If the user exists but is not an institution, the endpoint returns:
 }
 ```
 
-with status code `403 Forbidden`.
+Status:
 
-If the user does not exist, the endpoint returns:
+```text
+403 Forbidden
+```
+
+Unknown user:
 
 ```json
 {
@@ -479,33 +553,35 @@ If the user does not exist, the endpoint returns:
 }
 ```
 
-with status code `404 Not Found`.
-
-If a profile already exists for the same `user_id`, the existing institution profile is updated instead of creating a duplicate.
-
-### GET /institution/{user_id}
-
-Retrieves the institution profile associated with the specified user ID.
-
-Example request:
+Status:
 
 ```text
-GET /institution/1
+404 Not Found
 ```
 
-Example successful response:
+---
+
+## GET `/institution/{user_id}`
+
+Example:
+
+```text
+GET /institution/3
+```
+
+Example response:
 
 ```json
 {
   "id": 1,
-  "user_id": 1,
+  "user_id": 3,
   "institution_name": "Example Institution",
   "website": "https://example.com",
   "description": "Example institution description"
 }
 ```
 
-If no institution profile exists for the specified user, the endpoint returns:
+Missing institution profile:
 
 ```json
 {
@@ -513,141 +589,118 @@ If no institution profile exists for the specified user, the endpoint returns:
 }
 ```
 
-with status code `404 Not Found`.
+---
 
-### Institution Authorization
+# Canonical Shared Values
 
-Institution-only backend actions use the reusable `require_institution()` authorization check.
+The following values must stay consistent between:
 
-The check verifies that the supplied user exists and has the `institution` role.
+- frontend dropdowns;
+- `seed.sql`;
+- `scoring.py`;
+- `prompts.py`;
+- submission validation.
 
-* A nonexistent user is rejected with `404 Not Found`.
-* A user whose role is not `institution` is rejected with `403 Forbidden`.
-* An institution account is allowed to continue with the requested institution-only action.
+Do not add or rename values in only one location.
 
+## Majors
 
-## Shared value lists (contracts)
+Student majors:
 
-These values must be identical in the profile form dropdown, seed.sql,
-and the scoring logic. Do not add or rename values without telling the team.
-
-**Major** (students.major and opportunities.suitable_major):
-- Computer and Communications Engineering
-- Computer Science
-- Electrical Engineering
-- Mechanical Engineering
-- Civil Engineering
-- Industrial Engineering
-- Chemical Engineering
-- Other
-
-Opportunities may also use `Any` for suitable_major, meaning it suits every major.
-
-**Opportunity type / category** (students.preferred_opportunity_type and opportunities.category):
-Internship, Project, Workshop, Bootcamp, Hackathon, Competition, Mentorship, Research
-
-**Difficulty / level** (opportunities.difficulty and students.level):
-Beginner, Intermediate, Advanced
-
-
-## Schema changes
-
-If you already had the database before Feature 2, add the new column:
-
-```bash
-psql -U postgres -d skillplus -c "ALTER TABLE opportunities ADD COLUMN IF NOT EXISTS hours_per_week INTEGER;"
+```text
+Computer and Communications Engineering
+Computer Science
+Electrical Engineering
+Mechanical Engineering
+Civil Engineering
+Industrial Engineering
+Chemical Engineering
+Other
 ```
 
-If your local database was created before institution accounts were added, run:
+Opportunities may additionally use:
 
-```bash
-psql -U postgres -d skillplus -f backend/schema.sql
-```
-This creates the institutions table if it does not already exist. The database does not need to be recreated.
-
-## Opportunities API
-
-The Opportunities API provides read-only access to the opportunities stored in the database.
-
-### Get all opportunities
-
-```http
-GET /opportunities
+```text
+Any
 ```
 
-Returns all opportunities ordered by ID.
+## Opportunity Categories
 
-Optional query parameters:
+```text
+Internship
+Project
+Workshop
+Bootcamp
+Hackathon
+Competition
+Mentorship
+Research
+```
 
-- `category`
-- `difficulty`
-- `major`
+## Difficulty Levels
+
+```text
+Beginner
+Intermediate
+Advanced
+```
+
+---
+
+# Opportunities API
+
+## GET `/opportunities`
+
+Returns active opportunities ordered by ID.
+
+Optional filters:
+
+```text
+category
+difficulty
+major
+```
 
 Examples:
 
-```http
+```text
 GET /opportunities?difficulty=Beginner
 GET /opportunities?category=Internship
 GET /opportunities?major=Computer Science
 GET /opportunities?category=Internship&difficulty=Advanced
 ```
 
-When filtering by major, opportunities whose `suitable_major` is `Any` are also returned.
+When filtering by major, opportunities marked:
 
-Example request:
-
-```http
-GET /opportunities?difficulty=Beginner
+```text
+Any
 ```
 
-Example response:
+are also returned.
 
-```json
-[
-  {
-    "id": 1,
-    "title": "Python for Engineers Bootcamp",
-    "category": "Bootcamp",
-    "suitable_major": "Any",
-    "suitable_year": 1,
-    "difficulty": "Beginner",
-    "required_skills": [],
-    "skills_gained": [
-      "Python",
-      "Programming Basics"
-    ],
-    "deadline": "2026-10-15",
-    "estimated_time": "6 weeks",
-    "cv_benefit": "First programming credential",
-    "link": "https://example.com/opportunities/python-bootcamp",
-    "hours_per_week": 6
-  }
-]
-```
+Expired opportunities are excluded.
 
-If no opportunities match the supplied filters, the endpoint returns an empty list:
+Opportunities with no deadline are considered active.
+
+If nothing matches:
 
 ```json
 []
 ```
 
-This is returned with status code `200 OK`.
+is returned with `200 OK`.
 
-### Get an opportunity by ID
+---
 
-```http
-GET /opportunities/{opportunity_id}
-```
+## GET `/opportunities/{opportunity_id}`
 
 Example:
 
-```http
+```text
 GET /opportunities/1
 ```
 
-Returns the opportunity whose ID matches `opportunity_id`.
-
-If the ID is a valid integer but the opportunity does not exist, the endpoint returns:
+Missing opportunity:
 
 ```json
 {
@@ -655,277 +708,745 @@ If the ID is a valid integer but the opportunity does not exist, the endpoint re
 }
 ```
 
-with status code:
+Status:
 
 ```text
 404 Not Found
 ```
 
-If the supplied ID is not an integer, FastAPI automatically returns a validation error with status code `422`.
+---
 
-Expired opportunities are excluded from the public API. Opportunities with a deadline equal to or later than the current date, or with no deadline, are returned.
+# Recommendation Endpoint
 
-
-## Opportunity Scoring
-
-The recommendation engine ranks opportunities based on how well they match a student's profile.
-
-The scoring logic is implemented in:
-
-```
-backend/scoring.py
+```text
+GET /student/{user_id}/recommendations
 ```
 
-### Main Function
+The recommendation endpoint:
+
+1. loads the student profile;
+2. requires an analyzed level;
+3. loads active opportunities;
+4. scores each opportunity;
+5. adds the match score and reasons;
+6. sorts results from highest to lowest.
+
+Missing profile:
+
+```json
+{
+  "detail": "Student profile not found."
+}
+```
+
+Status:
+
+```text
+404
+```
+
+Unanalyzed profile:
+
+```json
+{
+  "detail": "Student profile must be analyzed before recommendations."
+}
+```
+
+Status:
+
+```text
+400
+```
+
+---
+
+# Recommendation Scoring
+
+The scoring function is:
 
 ```python
 score_opportunity(profile, opportunity)
 ```
 
-Returns:
+and returns:
 
 ```python
 (score, reasons)
 ```
 
-where:
+The score ranges from `0` to `100`.
 
-- `score` is an integer between **0 and 100**
-- `reasons` is a list of strings explaining why the opportunity matches the student's profile
-
-Example:
-
-```python
-score, reasons = score_opportunity(profile, opportunity)
-
-print(score)
-# 90
-
-print(reasons)
-# [
-#     "Matches your major",
-#     "Suitable for your experience level",
-#     "Uses your Python skill",
-#     "Matches your preferred opportunity type"
-# ]
-```
-
----
-
-### Scoring Weights
-
-| Criterion | Points |
-|-----------|-------:|
-| Exact major match | 30 |
-| Opportunity major = `Any` | 15 |
-| Exact difficulty match | 25 |
-| One-level difficulty difference | 10 |
-| Matching required skills | 5 points per skill (maximum 20) |
-| Matching interest | 15 |
-| Preferred opportunity type | 10 |
-
-Maximum possible score:
-
-```
-100 points
-```
-
----
-
-### Difficulty Matching
-
-Difficulty levels are:
-
-- Beginner
-- Intermediate
-- Advanced
-
-Scoring:
-
-| Difference | Points |
-|------------|-------:|
-| Exact match | 25 |
-| One level apart | 10 |
-| Two levels apart | 0 |
-
----
-
-### Skill Matching
-
-Each shared required skill contributes **5 points**.
-
-A maximum of **4 matching skills** are counted, for a maximum of **20 points**.
-
----
-
-### Active Opportunities
-
-Expired opportunities are excluded before scoring.
-
-Use:
-
-```python
-filter_active_opportunities(opportunities)
-```
-
-Rules:
-
-- Deadline before today → expired
-- Deadline equal to today → active
-- No deadline (`None`) → active
-
----
-
-### Missing Data
-
-The scoring functions safely handle missing or `None` values.
-
-Missing fields simply contribute zero points and do not raise exceptions.
-
----
-
-### Unit Tests
-
-Scoring is tested in:
-
-```
-backend/test_scoring.py
-```
-
-The tests cover:
-
-- Perfect match
-- Zero match
-- Level mismatch
-- Missing or `None` fields
-- Missing keys
-- Skill score cap
-- Expired opportunity filtering
-- Opportunities with no deadline
-
-## Schema changes (Feature 4)
-
-If you already have the database, run:
-
-psql -U postgres -d skillplus -f backend/schema.sql
-psql -U postgres -d skillplus -c "ALTER TABLE opportunities ADD COLUMN IF NOT EXISTS institution_id INTEGER REFERENCES institutions(id); ALTER TABLE opportunities ADD COLUMN IF NOT EXISTS source VARCHAR(20) DEFAULT 'seed';"
-
-The schema file creates the new `roadmaps` table; the ALTER commands are
-needed because CREATE TABLE IF NOT EXISTS skips the existing opportunities table.
-
-**Opportunity source** (opportunities.source):
-`seed` (curated sample data) or `institution` (submitted by an institution account)
-
-**Roadmap source** (roadmaps.source):
-`ai` (generated by the AI) or `fallback` (rule-based, used when AI is unavailable)
-
-## Roadmap caching
-
-One roadmap is stored per student (`roadmaps.user_id` is unique). The cached
-roadmap is served until the student explicitly requests a regeneration, or
-their profile is updated. Roadmaps are not regenerated automatically on a
-timer, to avoid unnecessary AI calls.
-
-## Recommendation Scoring (`scoring.py`)
-
-`score_opportunity(profile, opportunity)` scores an opportunity from 0–100
-against a student profile and returns `(score, reasons)`.
-
-### Weights
+Current weights:
 
 | Factor | Points | Partial credit |
-|---|---|---|
-| Major | 20 | 10 if opportunity is open to `Any` major |
-| Difficulty | 15 | 7 if one level off (e.g. Beginner vs Intermediate) |
-| Skills | 20 | 5 per matching skill, capped at 4 skills |
+|---|---:|---|
+| Major | 20 | 10 when opportunity major is `Any` |
+| Difficulty | 15 | 7 when one level apart |
+| Skills | 20 | 5 per matching skill, max 4 |
 | Interests | 10 | — |
 | Preferred opportunity type | 5 | — |
-| Suitable year | 10 | 5 if one year off, or if opportunity's year is unspecified |
-| Time compatibility | 10 | 5 if hours_per_week exceeds availability by ≤5 |
+| Suitable year | 10 | 5 when one year apart or unspecified |
+| Time compatibility | 10 | 5 when hours exceed availability by no more than 5 |
 | Career goal | 10 | — |
 | **Total** | **100** | |
 
-A profile/opportunity pair that matches on every factor scores exactly 100
-(see `test_perfect_match_hits_100` in `test_scoring.py`).
+Self-paced opportunities with:
 
-Self-paced opportunities (`hours_per_week IS NULL`, `deadline IS NULL` —
-e.g. the LeetCode seed row) are handled explicitly: `NULL` fields give
-partial credit rather than 0 or a crash, and `filter_active_opportunities`
-never filters out a `NULL` deadline.
+```text
+hours_per_week = NULL
+deadline = NULL
+```
 
-Interest and career-goal matching use token overlap against the
-opportunity's `title`/`category`/`skills_gained`/`cv_benefit` — there is
-no dedicated `career_goals` column on `opportunities`.
+are supported.
 
-### Canonical values
+Missing values are handled safely by the scoring logic.
 
-`students.major`/`opportunities.suitable_major`, `preferred_opportunity_type`/`category`,
-and `level`/`difficulty` must stay identical across the profile form
-dropdowns, `backend/seed.sql`, and `prompts.py`. Do not add, rename, or
-remove values in any one place without updating the other two and telling
-the team.
+Expired opportunities are excluded.
 
-- **Majors (8 + `Any`):** Computer and Communications Engineering, Computer
-  Science, Electrical Engineering, Mechanical Engineering, Civil
-  Engineering, Industrial Engineering, Chemical Engineering, Other
-  (`Any` is valid for `opportunities.suitable_major` only, not
-  `students.major`)
-- **Categories (8):** Internship, Project, Workshop, Bootcamp, Hackathon,
-  Competition, Mentorship, Research
-- **Difficulty (3):** Beginner, Intermediate, Advanced
+Unit tests are located in:
+
+```text
+backend/test_scoring.py
+```
 
 ---
 
-## AI Integration Layer (`prompts.py`)
+# AI Integration Layer
 
-Prompt construction, output schemas, and validation for two AI-backed
-features. Nothing here trusts the model — every response is parsed and
-validated before it touches the rest of the app.
+File:
 
-### 1. Opportunity extraction
-
-`build_extraction_prompt(description)` turns a pasted opportunity
-description into a prompt requesting strict JSON matching
-`EXTRACTION_SCHEMA`. Fields mirror the `opportunities` table columns.
-`category`, `difficulty`, and `suitable_major` are constrained to the
-canonical lists above — nothing else is accepted.
-
-`validate_extraction(data)` / `extract_opportunity(raw_ai_response)`
-parse and validate a model response, raising `PromptValidationError` on:
-bad enum values, missing required fields, unexpected/hallucinated fields,
-wrong types, or unparseable JSON. Markdown code fences around the JSON
-are tolerated and stripped automatically.
-
-### 2. Roadmap generation
-
-`build_roadmap_prompt(profile, recommendations)` requests a personalized
-roadmap (`summary`, `milestones`, `recommended_next_steps`) as strict
-JSON matching `ROADMAP_SCHEMA`. `validate_roadmap(data)` /
-`generate_roadmap(raw_ai_response)` validate the same way as extraction.
-
-### 3. Fallback roadmap — no AI call
-
-`fallback_roadmap(profile, recommendations)` builds a roadmap with **no
-AI dependency**, from the student's level, their skill gaps relative to
-the top recommendations, and the recommendations themselves. Returns the
-same shape as `generate_roadmap()` (with `"source": "fallback"` instead
-of `"ai"`, matching the `roadmaps.source` column default) so callers can
-treat both paths interchangeably. This is what the app should fall back
-to if the AI call fails, returns malformed output, or is switched off.
-
-### Status
-
-The reasoning layer (prompts, schemas, validation, fallback) is complete
-and tested — 74 tests in `test_scoring.py` + `test_prompts.py`, all
-passing. Live testing against real Gemini output is a separate,
-currently-blocked task (pending API key); the 5-varied-input tests here
-run against hand-written mock model outputs to prove the validation
-contract, not live model calls. Once the key is available, the same 5+5
-inputs should be re-run against real responses — no changes to this file
-should be needed, just confirmation the shapes match.
-
-### Running the tests
-
+```text
+backend/prompts.py
 ```
+
+The AI reasoning layer provides:
+
+- opportunity extraction prompts;
+- roadmap prompts;
+- strict output contracts;
+- JSON parsing;
+- validation;
+- rule-based roadmap fallback.
+
+AI output is never trusted directly.
+
+## Opportunity extraction
+
+```python
+build_extraction_prompt(description)
+```
+
+creates the extraction prompt.
+
+```python
+extract_opportunity(raw_ai_response)
+```
+
+parses and validates the model output.
+
+Validation rejects:
+
+- invalid JSON;
+- missing required fields;
+- unexpected fields;
+- invalid categories;
+- invalid difficulty values;
+- invalid majors;
+- incorrect types.
+
+Markdown JSON fences are tolerated and removed.
+
+## Roadmap generation
+
+```python
+build_roadmap_prompt(profile, recommendations)
+```
+
+creates the roadmap prompt.
+
+```python
+generate_roadmap(raw_ai_response)
+```
+
+parses and validates an AI roadmap.
+
+A valid roadmap contains:
+
+```text
+summary
+milestones
+recommended_next_steps
+```
+
+## Rule-based fallback
+
+```python
+fallback_roadmap(profile, recommendations)
+```
+
+requires no AI connection.
+
+It builds a roadmap using:
+
+- student level;
+- current student skills;
+- missing skills;
+- top recommendations.
+
+It returns:
+
+```json
+{
+  "source": "fallback"
+}
+```
+
+together with the roadmap content.
+
+This function is used when the AI call fails, times out, returns invalid JSON, or is unavailable.
+
+## AI testing status
+
+The prompt and scoring test suites are implemented in:
+
+```text
+backend/test_prompts.py
+backend/test_scoring.py
+```
+
+The AI integration has also been tested against a live Gemini API response.
+
+Verified live behavior includes:
+
+- opportunity descriptions successfully producing structured drafts;
+- roadmap generation returning validated AI output;
+- `"source": "ai"` when Gemini succeeds;
+- `"source": "fallback"` when the API key is unavailable;
+- AI failure paths returning usable output instead of a `500`.
+
+Run the existing prompt/scoring tests with:
+
+```bash
 python -m pytest test_scoring.py test_prompts.py -v
+```
+
+---
+
+# Feature 4 Issue #38 — Opportunity Submission
+
+## POST `/institution/opportunities/process`
+
+Processes a pasted opportunity description with Gemini and returns a draft.
+
+It **never saves the result**.
+
+Flow:
+
+```text
+raw opportunity description
+        ↓
+institution authorization
+        ↓
+build_extraction_prompt()
+        ↓
+ai_client.call_ai()
+        ↓
+extract_opportunity()
+        ↓
+validated editable draft
+```
+
+Example request:
+
+```json
+{
+  "user_id": 3,
+  "description": "Software Engineering Internship for Computer Science students. Requires Python and SQL. Intermediate difficulty. 10 hours per week for 3 months."
+}
+```
+
+Example AI response:
+
+```json
+{
+  "draft": {
+    "title": "Software Engineering Internship",
+    "category": "Internship",
+    "difficulty": "Intermediate",
+    "suitable_major": "Computer Science",
+    "suitable_year": null,
+    "required_skills": [
+      "Python",
+      "SQL"
+    ],
+    "skills_gained": [],
+    "hours_per_week": 10,
+    "estimated_time": "3 months",
+    "cv_benefit": null,
+    "link": null,
+    "deadline": null
+  }
+}
+```
+
+If Gemini is unavailable, the endpoint still returns `200`:
+
+```json
+{
+  "draft": {
+    "title": "Software Engineering Internship requiring Python and SQL.",
+    "category": null,
+    "difficulty": null,
+    "suitable_major": null,
+    "suitable_year": null,
+    "required_skills": [],
+    "skills_gained": [],
+    "hours_per_week": null,
+    "estimated_time": null,
+    "cv_benefit": null,
+    "link": null,
+    "deadline": null
+  },
+  "warning": "AI processing was unavailable. Please review and complete the draft manually."
+}
+```
+
+Student user:
+
+```json
+{
+  "detail": "Only institution accounts can perform this action."
+}
+```
+
+Status:
+
+```text
+403
+```
+
+Unknown user:
+
+```json
+{
+  "detail": "User not found."
+}
+```
+
+Status:
+
+```text
+404
+```
+
+---
+
+## POST `/institution/opportunities`
+
+Saves the institution's reviewed/edited opportunity.
+
+The backend:
+
+1. verifies the user is an institution;
+2. finds the related institution profile;
+3. saves the opportunity;
+4. sets `institution_id`;
+5. sets `source = "institution"`.
+
+The institution does not supply `institution_id` or `source`.
+
+Example request:
+
+```json
+{
+  "user_id": 3,
+  "title": "Software Engineering Internship",
+  "category": "Internship",
+  "difficulty": "Intermediate",
+  "suitable_major": "Computer Science",
+  "suitable_year": null,
+  "required_skills": [
+    "Python",
+    "SQL"
+  ],
+  "skills_gained": [
+    "Backend Development",
+    "Teamwork"
+  ],
+  "hours_per_week": 10,
+  "estimated_time": "3 months",
+  "cv_benefit": "Provides practical software engineering experience",
+  "link": "https://example.com/internship",
+  "deadline": "2026-10-30"
+}
+```
+
+Response:
+
+```json
+{
+  "message": "Opportunity submitted successfully",
+  "opportunity_id": 6,
+  "institution_id": 1,
+  "source": "institution"
+}
+```
+
+The request schema validates the canonical values for:
+
+```text
+category
+difficulty
+suitable_major
+```
+
+Invalid values are rejected with:
+
+```text
+422 Unprocessable Entity
+```
+
+---
+
+# Feature 4 Issue #38 — Student Roadmaps
+
+## POST `/student/{user_id}/roadmap`
+
+Generates or regenerates a roadmap.
+
+No request body is required.
+
+The endpoint:
+
+1. loads the saved student profile;
+2. checks that the profile has been analyzed;
+3. loads active opportunities;
+4. scores them using `score_opportunity()`;
+5. creates the roadmap prompt;
+6. calls Gemini;
+7. validates the result;
+8. falls back to `fallback_roadmap()` if AI fails;
+9. saves the roadmap into the `roadmaps` table.
+
+Calling POST again regenerates and replaces the previous cached roadmap.
+
+Example:
+
+```text
+POST /student/1/roadmap
+```
+
+Example AI response:
+
+```json
+{
+  "user_id": 1,
+  "source": "ai",
+  "roadmap": {
+    "summary": "Focus on strengthening backend development skills and closing the gaps required by your strongest opportunity matches.",
+    "milestones": [
+      {
+        "title": "Strengthen version control skills",
+        "description": "Practice Git workflows used in collaborative software projects.",
+        "skills_to_learn": [
+          "Git"
+        ],
+        "suggested_timeframe": "2-3 weeks"
+      }
+    ],
+    "recommended_next_steps": [
+      "Apply to your strongest matching opportunities"
+    ]
+  }
+}
+```
+
+## AI-unavailable roadmap behavior
+
+If Gemini is unavailable or the API key is removed, the endpoint still returns:
+
+```text
+200 OK
+```
+
+and uses:
+
+```json
+{
+  "source": "fallback"
+}
+```
+
+Example:
+
+```json
+{
+  "user_id": 1,
+  "source": "fallback",
+  "roadmap": {
+    "summary": "A rules-based roadmap for a Beginner student, focused on closing skill gaps and preparing for top matched opportunities.",
+    "milestones": [
+      {
+        "title": "Strengthen your beginner foundations",
+        "description": "Review core concepts and close the most common skill gaps before applying to your top-matched opportunities.",
+        "skills_to_learn": [
+          "Git"
+        ],
+        "suggested_timeframe": "2-4 weeks"
+      }
+    ],
+    "recommended_next_steps": [
+      "Learn Git"
+    ]
+  }
+}
+```
+
+---
+
+## GET `/student/{user_id}/roadmap`
+
+Returns the currently cached roadmap.
+
+This endpoint **does not call Gemini**.
+
+Example:
+
+```text
+GET /student/1/roadmap
+```
+
+Example response:
+
+```json
+{
+  "user_id": 1,
+  "source": "ai",
+  "generated_at": "2026-08-14T10:24:04",
+  "roadmap": {
+    "summary": "Focus on strengthening backend development skills.",
+    "milestones": [
+      {
+        "title": "Strengthen version control skills",
+        "description": "Practice Git workflows.",
+        "skills_to_learn": [
+          "Git"
+        ],
+        "suggested_timeframe": "2-3 weeks"
+      }
+    ],
+    "recommended_next_steps": [
+      "Apply to your strongest matching opportunities"
+    ]
+  }
+}
+```
+
+If no cached roadmap exists:
+
+```json
+{
+  "detail": "Roadmap not found."
+}
+```
+
+Status:
+
+```text
+404
+```
+
+---
+
+# Roadmap Caching
+
+The `roadmaps.user_id` column is unique, so one cached roadmap is stored per student.
+
+The cached roadmap remains until:
+
+1. the student explicitly regenerates it through:
+
+```text
+POST /student/{user_id}/roadmap
+```
+
+or:
+
+2. the student profile is updated through:
+
+```text
+POST /student-profile
+```
+
+Updating the profile deletes the existing roadmap cache.
+
+There is no automatic timer-based regeneration.
+
+---
+
+# Opportunity and Roadmap Sources
+
+`opportunities.source`:
+
+```text
+seed
+institution
+```
+
+- `seed` → curated opportunities loaded through the seed file;
+- `institution` → opportunities submitted through an institution account.
+
+`roadmaps.source`:
+
+```text
+ai
+fallback
+```
+
+- `ai` → generated successfully by Gemini;
+- `fallback` → generated using the local rule-based fallback.
+
+---
+
+# Shared Gemini Client
+
+File:
+
+```text
+backend/ai_client.py
+```
+
+The client:
+
+- reads `GEMINI_API_KEY` from `.env`;
+- uses the Google GenAI Python SDK;
+- applies a request timeout;
+- performs the initial attempt plus one retry;
+- raises an exception after both attempts fail.
+
+The API endpoints catch AI failures and provide fallback behavior instead of allowing AI problems to cause an unhandled `500`.
+
+---
+
+# Feature 4 Database Migration
+
+For an existing local Skill+ database, run:
+
+```bash
+psql -U postgres -d skillplus -f backend/schema.sql
+```
+
+Because:
+
+```sql
+CREATE TABLE IF NOT EXISTS opportunities
+```
+
+does not alter an already-existing table, existing installations should also run:
+
+```bash
+psql -U postgres -d skillplus -c "ALTER TABLE opportunities ADD COLUMN IF NOT EXISTS institution_id INTEGER REFERENCES institutions(id);"
+```
+
+and:
+
+```bash
+psql -U postgres -d skillplus -c "ALTER TABLE opportunities ADD COLUMN IF NOT EXISTS source VARCHAR(20) DEFAULT 'seed';"
+```
+
+The schema creates the `roadmaps` table if it does not already exist.
+
+---
+
+# Running the Backend
+
+From the `backend` directory:
+
+```bash
+python -m uvicorn main:app --reload
+```
+
+Backend:
+
+```text
+http://127.0.0.1:8000
+```
+
+Swagger documentation:
+
+```text
+http://127.0.0.1:8000/docs
+```
+
+The Swagger page can be used to test all backend endpoints.
+
+---
+
+# Testing
+
+Prompt/scoring tests:
+
+```bash
+python -m pytest test_scoring.py test_prompts.py -v
+```
+
+Issue #38 was additionally tested through FastAPI Swagger and a real local PostgreSQL database.
+
+Verified cases include:
+
+- Gemini opportunity extraction → `200`;
+- extraction returned structured validated JSON;
+- processing endpoint did not save the AI draft;
+- institution submission saved with the correct `institution_id`;
+- institution submission saved with `source = "institution"`;
+- student attempting institution action → `403`;
+- unknown institution user → `404`;
+- invalid reviewed opportunity enums → `422`;
+- Gemini roadmap generation → `source = "ai"`;
+- generated roadmap saved in PostgreSQL;
+- cached roadmap returned through GET;
+- updating the student profile deleted the cached roadmap;
+- GET after cache deletion → `404`;
+- Gemini key removed → roadmap returned `source = "fallback"` with `200`;
+- Gemini key removed → opportunity processing returned an editable fallback draft with `200`.
+
+---
+
+# Current Backend Endpoints
+
+Authentication:
+
+```text
+POST /auth/signup
+POST /auth/login
+POST /auth/forgot-password
+POST /auth/reset-password
+```
+
+Students:
+
+```text
+POST /student-profile
+GET /student/profile/{user_id}
+POST /student/analyze/{user_id}
+GET /student/{user_id}/recommendations
+POST /student/{user_id}/roadmap
+GET /student/{user_id}/roadmap
+```
+
+Institutions:
+
+```text
+POST /institution-profile
+GET /institution/{user_id}
+POST /institution/opportunities/process
+POST /institution/opportunities
+```
+
+Opportunities:
+
+```text
+GET /opportunities
+GET /opportunities/{opportunity_id}
 ```
