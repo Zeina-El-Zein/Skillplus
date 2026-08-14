@@ -825,3 +825,107 @@ One roadmap is stored per student (`roadmaps.user_id` is unique). The cached
 roadmap is served until the student explicitly requests a regeneration, or
 their profile is updated. Roadmaps are not regenerated automatically on a
 timer, to avoid unnecessary AI calls.
+
+## Recommendation Scoring (`scoring.py`)
+
+`score_opportunity(profile, opportunity)` scores an opportunity from 0–100
+against a student profile and returns `(score, reasons)`.
+
+### Weights
+
+| Factor | Points | Partial credit |
+|---|---|---|
+| Major | 20 | 10 if opportunity is open to `Any` major |
+| Difficulty | 15 | 7 if one level off (e.g. Beginner vs Intermediate) |
+| Skills | 20 | 5 per matching skill, capped at 4 skills |
+| Interests | 10 | — |
+| Preferred opportunity type | 5 | — |
+| Suitable year | 10 | 5 if one year off, or if opportunity's year is unspecified |
+| Time compatibility | 10 | 5 if hours_per_week exceeds availability by ≤5 |
+| Career goal | 10 | — |
+| **Total** | **100** | |
+
+A profile/opportunity pair that matches on every factor scores exactly 100
+(see `test_perfect_match_hits_100` in `test_scoring.py`).
+
+Self-paced opportunities (`hours_per_week IS NULL`, `deadline IS NULL` —
+e.g. the LeetCode seed row) are handled explicitly: `NULL` fields give
+partial credit rather than 0 or a crash, and `filter_active_opportunities`
+never filters out a `NULL` deadline.
+
+Interest and career-goal matching use token overlap against the
+opportunity's `title`/`category`/`skills_gained`/`cv_benefit` — there is
+no dedicated `career_goals` column on `opportunities`.
+
+### Canonical values
+
+`students.major`/`opportunities.suitable_major`, `preferred_opportunity_type`/`category`,
+and `level`/`difficulty` must stay identical across the profile form
+dropdowns, `backend/seed.sql`, and `prompts.py`. Do not add, rename, or
+remove values in any one place without updating the other two and telling
+the team.
+
+- **Majors (8 + `Any`):** Computer and Communications Engineering, Computer
+  Science, Electrical Engineering, Mechanical Engineering, Civil
+  Engineering, Industrial Engineering, Chemical Engineering, Other
+  (`Any` is valid for `opportunities.suitable_major` only, not
+  `students.major`)
+- **Categories (8):** Internship, Project, Workshop, Bootcamp, Hackathon,
+  Competition, Mentorship, Research
+- **Difficulty (3):** Beginner, Intermediate, Advanced
+
+---
+
+## AI Integration Layer (`prompts.py`)
+
+Prompt construction, output schemas, and validation for two AI-backed
+features. Nothing here trusts the model — every response is parsed and
+validated before it touches the rest of the app.
+
+### 1. Opportunity extraction
+
+`build_extraction_prompt(description)` turns a pasted opportunity
+description into a prompt requesting strict JSON matching
+`EXTRACTION_SCHEMA`. Fields mirror the `opportunities` table columns.
+`category`, `difficulty`, and `suitable_major` are constrained to the
+canonical lists above — nothing else is accepted.
+
+`validate_extraction(data)` / `extract_opportunity(raw_ai_response)`
+parse and validate a model response, raising `PromptValidationError` on:
+bad enum values, missing required fields, unexpected/hallucinated fields,
+wrong types, or unparseable JSON. Markdown code fences around the JSON
+are tolerated and stripped automatically.
+
+### 2. Roadmap generation
+
+`build_roadmap_prompt(profile, recommendations)` requests a personalized
+roadmap (`summary`, `milestones`, `recommended_next_steps`) as strict
+JSON matching `ROADMAP_SCHEMA`. `validate_roadmap(data)` /
+`generate_roadmap(raw_ai_response)` validate the same way as extraction.
+
+### 3. Fallback roadmap — no AI call
+
+`fallback_roadmap(profile, recommendations)` builds a roadmap with **no
+AI dependency**, from the student's level, their skill gaps relative to
+the top recommendations, and the recommendations themselves. Returns the
+same shape as `generate_roadmap()` (with `"source": "fallback"` instead
+of `"ai"`, matching the `roadmaps.source` column default) so callers can
+treat both paths interchangeably. This is what the app should fall back
+to if the AI call fails, returns malformed output, or is switched off.
+
+### Status
+
+The reasoning layer (prompts, schemas, validation, fallback) is complete
+and tested — 74 tests in `test_scoring.py` + `test_prompts.py`, all
+passing. Live testing against real Gemini output is a separate,
+currently-blocked task (pending API key); the 5-varied-input tests here
+run against hand-written mock model outputs to prove the validation
+contract, not live model calls. Once the key is available, the same 5+5
+inputs should be re-run against real responses — no changes to this file
+should be needed, just confirmation the shapes match.
+
+### Running the tests
+
+```
+python -m pytest test_scoring.py test_prompts.py -v
+```
