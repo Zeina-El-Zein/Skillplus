@@ -29,7 +29,7 @@ export default function LoginPage() {
     try {
       const response = await login(email.trim(), password);
       saveUser(response.user);
-      navigate("/profile");
+      navigate(response.user.role === "institution" ? "/institution/dashboard" : "/profile");
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "Could not log in.");
     } finally {
@@ -40,9 +40,9 @@ export default function LoginPage() {
   return (
     <FlowLayout>
       <PageCard
-        eyebrow="Step 2 of 5"
+        eyebrow="Step 2 of 6"
         title="Welcome back"
-        description="Log in before creating or reviewing your student profile."
+        description="Log in to continue to your student flow or institution dashboard."
       >
         <form onSubmit={handleSubmit} className="flex flex-col gap-5">
           {state.accountCreated && (

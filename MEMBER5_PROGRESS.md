@@ -79,20 +79,39 @@ Test result:
 
 ```text
 Test Files  1 passed (1)
-Tests       11 passed (11)
+Tests       19 passed (19)
 ```
 
 Build result:
 
 ```text
-1619 modules transformed
+1624 modules transformed
 Build completed successfully
 ```
 
-## Integration Dependency
+## Feature 4 Issue #40 — All New Frontend
+
+Status: Done
+
+- Updated signup to send the backend-required `student` or `institution` role.
+- Added role-aware login routing: students continue to `/profile`; institutions continue to `/institution/dashboard`.
+- Added student/institution route guards.
+- Added the institution dashboard with institution-profile load, missing-profile, create, edit, loading, error and retry states.
+- Added the raw opportunity-description submission screen connected to `POST /institution/opportunities/process`.
+- Added the editable review screen using the backend's exact canonical categories, difficulty levels and majors.
+- Connected reviewed publishing to `POST /institution/opportunities`; AI drafts are never published automatically.
+- Added explicit `Generated offline` messaging for the editable extraction fallback.
+- Added the student roadmap connected to cached `GET` and generate/regenerate `POST /student/{user_id}/roadmap`.
+- Added roadmap loading, empty, error, retry, AI-source, fallback-source and cached-result states.
+- Removed unsupported homepage statistics and claims, and reserved AI wording for extraction and roadmap generation.
+- Expanded automated coverage from 11 to 19 tests without regressing earlier Member 5 flows.
+
+## Integration Status
 
 The browser frontend requires all four backend tasks in one FastAPI app and CORS enabled for `http://localhost:5173`. The integrated `main` copy includes this final wiring.
 
 The integrated backend provides both `POST /auth/forgot-password` and `POST /auth/reset-password`. For local testing, the backend prints the reset link in its terminal. A deployed version will still need an email provider to deliver that link automatically.
 
-For Feature 3, merge the real `feature3-scoring-formula` work and `feature3/recommendations-endpoint` before the final PostgreSQL browser test. The Member 5 frontend is already matched to the endpoint's exact `GET /student/{user_id}/recommendations` contract.
+The uploaded latest `main` and Sara Chmayssani's final `feature4/opportunity-roadmap-endpoints` snapshot were byte-for-byte identical. The frontend is matched to the integrated Feature 4 contracts in `main`.
+
+Real Gemini execution still requires a valid team API key in the backend environment. With the key removed, both opportunity processing and roadmap generation remain usable through the tested fallback paths.

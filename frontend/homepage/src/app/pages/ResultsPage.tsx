@@ -12,12 +12,15 @@ export default function ResultsPage() {
   const result = getAnalysis();
 
   if (!user) return <Navigate to="/login" replace />;
+  if (user.role === "institution") {
+    return <Navigate to="/institution/dashboard" replace />;
+  }
   if (!profile || !result) return <Navigate to="/profile" replace />;
 
   return (
     <FlowLayout>
       <PageCard
-        eyebrow="Step 4 of 5"
+        eyebrow="Step 4 of 6"
         title="Your analysis is ready"
         description={`Skill+ analyzed ${profile.courses_taken.length} course(s) and ${profile.current_skills.length} skill(s) for ${user.name}.`}
       >
@@ -76,7 +79,7 @@ export default function ResultsPage() {
             </dl>
           </div>
 
-          <div className="grid sm:grid-cols-2 gap-3">
+          <div className="grid sm:grid-cols-3 gap-3">
             <button
               type="button"
               onClick={() => navigate("/profile")}
@@ -91,6 +94,14 @@ export default function ResultsPage() {
               className="inline-flex items-center justify-center gap-2 bg-blue-900 hover:bg-blue-800 text-white font-semibold px-6 py-3.5 rounded-full transition-colors"
             >
               View matched opportunities
+              <ArrowRight className="w-4 h-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate("/roadmap")}
+              className="inline-flex items-center justify-center gap-2 bg-blue-50 hover:bg-blue-100 text-blue-900 border border-blue-100 font-semibold px-6 py-3.5 rounded-full transition-colors"
+            >
+              View roadmap
               <ArrowRight className="w-4 h-4" />
             </button>
           </div>

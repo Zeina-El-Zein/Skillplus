@@ -9,14 +9,16 @@ const STEPS = [
   { path: "/profile", label: "Profile" },
   { path: "/results", label: "Results" },
   { path: "/recommendations", label: "Matches" },
+  { path: "/roadmap", label: "Roadmap" },
 ];
 
 type FlowLayoutProps = {
   children: ReactNode;
   showSteps?: boolean;
+  wide?: boolean;
 };
 
-export default function FlowLayout({ children, showSteps = true }: FlowLayoutProps) {
+export default function FlowLayout({ children, showSteps = true, wide = false }: FlowLayoutProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const user = getUser();
@@ -60,9 +62,9 @@ export default function FlowLayout({ children, showSteps = true }: FlowLayoutPro
       </header>
 
       <main className="px-6 py-10">
-        <div className="max-w-3xl mx-auto">
+        <div className={`${wide ? "max-w-5xl" : "max-w-3xl"} mx-auto`}>
           {showSteps && (
-            <div className="grid grid-cols-5 mb-10">
+            <div className="grid grid-cols-6 mb-10">
               {STEPS.map((step, index) => (
                 <div key={step.path} className="relative flex flex-col items-center gap-2">
                   {index > 0 && (

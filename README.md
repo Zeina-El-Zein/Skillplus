@@ -252,3 +252,49 @@ Verified cases:
 - unanalyzed student profile returned `400`;
 - expired opportunities were excluded by the SQL query;
 - `NULL` student arrays are handled safely by the scoring function using `or []`.
+
+---
+
+## Member 5 Frontend (Feature 4 Issue #40)
+
+The frontend now supports both roles returned by authentication.
+
+### Student flow
+
+~~~text
+signup → login → profile → analysis → recommendations → roadmap
+~~~
+
+The roadmap screen uses `GET /student/{user_id}/roadmap` and `POST /student/{user_id}/roadmap`. It shows cached, loading, missing, error, retry, AI-assisted and rules-based fallback states.
+
+### Institution flow
+
+~~~text
+signup → login → dashboard/profile → description → editable review → publish
+~~~
+
+The institution screens use:
+
+~~~http
+GET  /institution/{user_id}
+POST /institution-profile
+POST /institution/opportunities/process
+POST /institution/opportunities
+~~~
+
+The process endpoint only prepares a draft. The institution must review and edit every field before the final save request. Fallback drafts are labeled `Generated offline`.
+
+### Homepage accuracy
+
+Unsupported user counts, accuracy percentages and opportunity-volume claims were removed. Rule-based analysis and scoring are described separately from AI-assisted opportunity extraction and roadmap generation.
+
+### Frontend verification
+
+~~~bash
+cd frontend/homepage
+npm ci
+npm run test:run
+npm run build
+~~~
+
+The Issue #40 suite covers both role flows, exact API payloads, role guards, fallback behavior, roadmap caching/generation/error states, and all previously implemented Member 5 behavior.

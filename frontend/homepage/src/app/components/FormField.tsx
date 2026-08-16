@@ -1,4 +1,9 @@
-import type { InputHTMLAttributes, ReactNode, SelectHTMLAttributes } from "react";
+import type {
+  InputHTMLAttributes,
+  ReactNode,
+  SelectHTMLAttributes,
+  TextareaHTMLAttributes,
+} from "react";
 
 type FieldProps = {
   label: string;
@@ -30,6 +35,15 @@ export function SelectInput(props: SelectHTMLAttributes<HTMLSelectElement>) {
     <select
       {...props}
       className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-800 outline-none transition focus:border-blue-700 focus:ring-4 focus:ring-blue-100"
+    />
+  );
+}
+
+export function TextAreaInput(props: TextareaHTMLAttributes<HTMLTextAreaElement>) {
+  return (
+    <textarea
+      {...props}
+      className="w-full min-h-32 resize-y rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-800 outline-none transition focus:border-blue-700 focus:ring-4 focus:ring-blue-100 disabled:bg-gray-50"
     />
   );
 }

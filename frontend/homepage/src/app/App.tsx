@@ -5,7 +5,6 @@ import {
   BarChart2,
   Zap,
   Map,
-  Bookmark,
   CheckCircle2,
   ArrowRight,
   Star,
@@ -16,16 +15,27 @@ import {
   TrendingUp,
   Menu,
   X,
+  Building2,
 } from "lucide-react";
+import InstitutionDashboardPage from "./pages/InstitutionDashboardPage";
 import LoginPage from "./pages/LoginPage";
 import ForgotPasswordPage from "./pages/ForgotPasswordPage";
+import OpportunityReviewPage from "./pages/OpportunityReviewPage";
+import OpportunitySubmissionPage from "./pages/OpportunitySubmissionPage";
 import ProfilePage from "./pages/ProfilePage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
 import RecommendationsPage from "./pages/RecommendationsPage";
+import RoadmapPage from "./pages/RoadmapPage";
 import ResultsPage from "./pages/ResultsPage";
 import SignupPage from "./pages/SignupPage";
 
-const NAV_LINKS = ["Home", "How It Works", "Opportunities", "Roadmap", "About"];
+const NAV_LINKS = [
+  { label: "Home", href: "#home" },
+  { label: "How It Works", href: "#how-it-works" },
+  { label: "Opportunities", href: "#opportunities" },
+  { label: "Roadmap", href: "#roadmap" },
+  { label: "About", href: "#about" },
+];
 
 function Nav() {
   const [open, setOpen] = useState(false);
@@ -48,12 +58,12 @@ function Nav() {
         <nav className="hidden md:flex items-center gap-8">
           {NAV_LINKS.map((link) => (
             <a
-              key={link}
-              href="#"
+              key={link.href}
+              href={link.href}
               className="text-sm font-medium text-gray-600 hover:text-blue-900 transition-colors"
               style={{ fontFamily: "'Inter', sans-serif" }}
             >
-              {link}
+              {link.label}
             </a>
           ))}
         </nav>
@@ -84,8 +94,8 @@ function Nav() {
       {open && (
         <div className="md:hidden bg-white border-t border-border px-6 py-4 flex flex-col gap-4">
           {NAV_LINKS.map((link) => (
-            <a key={link} href="#" className="text-sm font-medium text-gray-700">
-              {link}
+            <a key={link.href} href={link.href} className="text-sm font-medium text-gray-700">
+              {link.label}
             </a>
           ))}
           <div className="flex items-center gap-3">
@@ -111,7 +121,7 @@ function Nav() {
 function Hero() {
   const navigate = useNavigate();
   return (
-    <section className="relative overflow-hidden pt-24 pb-28 px-6">
+    <section id="home" className="relative overflow-hidden pt-24 pb-28 px-6">
       {/* Background blobs */}
       <div
         className="absolute -top-32 -left-32 w-[520px] h-[520px] rounded-full opacity-20 blur-3xl pointer-events-none"
@@ -125,7 +135,7 @@ function Hero() {
       <div className="relative max-w-4xl mx-auto text-center">
         <div className="inline-flex items-center gap-2 bg-blue-50 border border-blue-100 text-blue-900 text-xs font-semibold uppercase tracking-wider px-4 py-2 rounded-full mb-8">
           <Brain className="w-3.5 h-3.5" />
-          AI-Powered Career Guidance for Students
+          Personalized Opportunity Guidance
         </div>
 
         <h1
@@ -150,8 +160,8 @@ function Hero() {
           className="text-lg md:text-xl text-gray-500 max-w-2xl mx-auto mb-10 leading-relaxed"
           style={{ fontFamily: "'Inter', sans-serif" }}
         >
-          Skill+ analyzes your profile and recommends realistic opportunities, explains why they
-          fit, shows missing skills, and gives you a clear roadmap.
+          Skill+ uses your saved profile to rank active opportunities, explain each score, show
+          skill gaps, and build a practical roadmap.
         </p>
 
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
@@ -173,7 +183,7 @@ function Hero() {
         </div>
 
         <div className="mt-14 flex flex-wrap items-center justify-center gap-6 text-sm text-gray-500">
-          {["2,400+ students matched", "95% fit accuracy", "Free for students"].map((stat) => (
+          {["Rule-based profile analysis", "Transparent match scores", "AI-assisted roadmaps"].map((stat) => (
             <div key={stat} className="flex items-center gap-2">
               <CheckCircle2 className="w-4 h-4 text-blue-700" />
               <span style={{ fontFamily: "'Inter', sans-serif" }}>{stat}</span>
@@ -196,7 +206,7 @@ const STEPS = [
     number: "02",
     icon: BarChart2,
     title: "Get your level analyzed",
-    desc: "Our AI maps your profile against thousands of real opportunities to determine your readiness.",
+    desc: "Skill+ applies explicit, testable rules to your courses and skills to determine your current readiness.",
   },
   {
     number: "03",
@@ -214,7 +224,7 @@ const STEPS = [
 
 function HowItWorks() {
   return (
-    <section className="py-24 px-6 bg-white">
+    <section id="how-it-works" className="py-24 px-6 bg-white">
       <div className="max-w-7xl mx-auto">
         <div className="text-center mb-16">
           <p
@@ -233,7 +243,7 @@ function HowItWorks() {
             className="text-gray-500 mt-4 max-w-xl mx-auto text-lg"
             style={{ fontFamily: "'Inter', sans-serif" }}
           >
-            Four simple steps from profile to opportunity — all powered by AI.
+            Four clear steps using transparent analysis, ranked matches, and an AI-assisted roadmap.
           </p>
         </div>
 
@@ -280,7 +290,7 @@ const FEATURES = [
     color: "from-blue-900 to-blue-700",
     bg: "bg-blue-50",
     title: "Student Profile Analysis",
-    desc: "We consider your year, courses, GPA, skills, time availability, and career goals to build a complete academic snapshot.",
+    desc: "We consider your year, courses, skills, interests, time availability, and career goals to build an academic snapshot.",
   },
   {
     icon: Star,
@@ -294,7 +304,7 @@ const FEATURES = [
     color: "from-blue-600 to-blue-800",
     bg: "bg-blue-50",
     title: "Skill Gap Analysis",
-    desc: "See exactly which skills you still need to acquire and get specific resources to learn them before applying.",
+    desc: "See which skills and experience gaps to address before applying to stronger opportunity matches.",
   },
   {
     icon: Brain,
@@ -304,17 +314,17 @@ const FEATURES = [
     desc: "A personalized, time-aware plan that takes into account your semester schedule and career timeline.",
   },
   {
-    icon: Bookmark,
+    icon: Building2,
     color: "from-blue-600 to-blue-700",
     bg: "bg-blue-50",
-    title: "Saved Opportunities",
-    desc: "Bookmark projects, internships, hackathons, and more. Track application status and deadlines in one place.",
+    title: "Institution Submissions",
+    desc: "Institution accounts can review structured opportunity fields before publishing them to the shared database.",
   },
 ];
 
 function Features() {
   return (
-    <section className="py-24 px-6" style={{ background: "#F8FAFF" }}>
+    <section id="roadmap" className="py-24 px-6" style={{ background: "#F8FAFF" }}>
       <div className="max-w-7xl mx-auto">
         <div className="text-center mb-16">
           <p
@@ -376,7 +386,7 @@ function Features() {
 
 function RecommendationCard() {
   return (
-    <section className="py-24 px-6 bg-white">
+    <section id="opportunities" className="py-24 px-6 bg-white">
       <div className="max-w-7xl mx-auto">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
           <div>
@@ -384,13 +394,13 @@ function RecommendationCard() {
               className="text-blue-900 font-semibold text-sm uppercase tracking-widest mb-3"
               style={{ fontFamily: "'Inter', sans-serif" }}
             >
-              Live Example
+              Illustrative Example
             </p>
             <h2
               className="text-4xl md:text-5xl font-extrabold tracking-tight text-gray-900 mb-5"
               style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
             >
-              See a real recommendation in action
+              See how a recommendation is explained
             </h2>
             <p
               className="text-gray-500 text-lg leading-relaxed mb-8"
@@ -403,7 +413,7 @@ function RecommendationCard() {
               {[
                 "Tailored to your exact skill level",
                 "Missing skills clearly highlighted",
-                "AI explains the fit in plain English",
+                "Scoring reasons shown in plain English",
               ].map((point) => (
                 <div key={point} className="flex items-center gap-3">
                   <div className="w-5 h-5 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
@@ -529,7 +539,7 @@ function RecommendationCard() {
                 className="text-xs font-semibold text-gray-700"
                 style={{ fontFamily: "'Inter', sans-serif" }}
               >
-                147 matches found for your profile
+                Match reasons stay visible and reviewable
               </span>
             </div>
           </div>
@@ -573,7 +583,7 @@ function OpportunityPills() {
 function CTA() {
   const navigate = useNavigate();
   return (
-    <section className="py-28 px-6 relative overflow-hidden">
+    <section id="about" className="py-28 px-6 relative overflow-hidden">
       <div
         className="absolute inset-0 pointer-events-none"
         style={{
@@ -607,8 +617,8 @@ function CTA() {
           className="text-gray-500 text-lg mb-10 max-w-xl mx-auto leading-relaxed"
           style={{ fontFamily: "'Inter', sans-serif" }}
         >
-          Join over 2,400 engineering students who discovered opportunities that matched their
-          actual level — and landed internships, projects, and research roles.
+          Create a profile, review your ranked opportunities, and turn your strongest matches into
+          a practical next-step plan.
         </p>
 
         <button
@@ -650,7 +660,7 @@ function Footer() {
           className="text-sm text-center"
           style={{ fontFamily: "'Inter', sans-serif" }}
         >
-          Built for engineering students · AI-powered career guidance · © 2024 Skill+
+          Built for students · Transparent matching · AI-assisted planning · © 2026 Skill+
         </p>
         <div className="flex items-center gap-6 text-sm">
           {["Privacy", "Terms", "Contact"].map((l) => (
@@ -688,9 +698,13 @@ export default function App() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
+        <Route path="/institution/dashboard" element={<InstitutionDashboardPage />} />
+        <Route path="/institution/opportunities/new" element={<OpportunitySubmissionPage />} />
+        <Route path="/institution/opportunities/review" element={<OpportunityReviewPage />} />
         <Route path="/profile" element={<ProfilePage />} />
         <Route path="/results" element={<ResultsPage />} />
         <Route path="/recommendations" element={<RecommendationsPage />} />
+        <Route path="/roadmap" element={<RoadmapPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>

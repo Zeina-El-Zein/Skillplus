@@ -5,40 +5,14 @@ import { analyzeStudentProfile, saveStudentProfile } from "../api";
 import FlowLayout from "../components/FlowLayout";
 import { Field, SelectInput, TextInput } from "../components/FormField";
 import PageCard from "../components/PageCard";
+import {
+  listToText,
+  OPPORTUNITY_CATEGORIES,
+  PROFILE_MAJORS,
+  textToList,
+} from "../constants";
 import { getProfile, getUser, saveAnalysis, saveProfile } from "../storage";
 import type { StudentProfile } from "../types";
-
-const OPPORTUNITY_TYPES = [
-  "Internship",
-  "Project",
-  "Workshop",
-  "Bootcamp",
-  "Hackathon",
-  "Competition",
-  "Mentorship",
-  "Research",
-];
-
-const MAJORS = [
-  "Computer and Communications Engineering",
-  "Computer Science",
-  "Electrical Engineering",
-  "Mechanical Engineering",
-  "Civil Engineering",
-  "Industrial Engineering",
-  "Chemical Engineering",
-  "Other",
-];
-function listToText(values: string[]) {
-  return values.join(", ");
-}
-
-function textToList(value: string) {
-  return value
-    .split(",")
-    .map((item) => item.trim())
-    .filter(Boolean);
-}
 
 export default function ProfilePage() {
   const navigate = useNavigate();
@@ -62,6 +36,9 @@ export default function ProfilePage() {
   const [loading, setLoading] = useState(false);
 
   if (!user) return <Navigate to="/login" replace />;
+  if (user.role === "institution") {
+    return <Navigate to="/institution/dashboard" replace />;
+  }
 
   function updateField(field: keyof typeof form, value: string) {
     setForm((current) => ({ ...current, [field]: value }));
@@ -135,7 +112,7 @@ export default function ProfilePage() {
   return (
     <FlowLayout>
       <PageCard
-        eyebrow="Step 3 of 5"
+        eyebrow="Step 3 of 6"
         title="Build your student profile"
         description="These fields exactly match the student profile API and database agreed by the team."
       >
@@ -148,7 +125,7 @@ export default function ProfilePage() {
                 required
               >
                 <option value="" disabled>Select your major</option>
-                {MAJORS.map((major) => (
+                {PROFILE_MAJORS.map((major) => (
                   <option key={major} value={major}>{major}</option>
                 ))}
               </SelectInput>
@@ -220,7 +197,7 @@ export default function ProfilePage() {
                 value={form.opportunityType}
                 onChange={(event) => updateField("opportunityType", event.target.value)}
               >
-                {OPPORTUNITY_TYPES.map((type) => (
+                {OPPORTUNITY_CATEGORIES.map((type) => (
                   <option key={type} value={type}>{type}</option>
                 ))}
               </SelectInput>

@@ -1,9 +1,15 @@
 import type {
   AnalysisResult,
   AuthResponse,
+  InstitutionProfile,
+  OpportunityProcessResponse,
+  OpportunitySubmission,
+  OpportunitySubmissionResponse,
   ProfileResponse,
   RecommendationsResponse,
+  RoadmapResponse,
   StudentProfile,
+  UserRole,
 } from "./types";
 
 const API_URL = (import.meta.env.VITE_API_URL || "http://localhost:8000").replace(/\/$/, "");
@@ -45,10 +51,10 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   return body as T;
 }
 
-export function signup(name: string, email: string, password: string) {
+export function signup(name: string, email: string, password: string, role: UserRole) {
   return request<AuthResponse>("/auth/signup", {
     method: "POST",
-    body: JSON.stringify({ name, email, password }),
+    body: JSON.stringify({ name, email, password, role }),
   });
 }
 
@@ -104,4 +110,41 @@ export async function analyzeStudentProfile(profile: StudentProfile) {
 
 export function getStudentRecommendations(userId: number) {
   return request<RecommendationsResponse>(`/student/${userId}/recommendations`);
+}
+
+export function getInstitutionProfile(userId: number) {
+  return request<InstitutionProfile>(`/institution/${userId}`);
+}
+
+export function saveInstitutionProfile(
+  profile: Omit<InstitutionProfile, "id">,
+) {
+  return request<{ message: string; institution_id: number }>("/institution-profile", {
+    method: "POST",
+    body: JSON.stringify(profile),
+  });
+}
+
+export function processOpportunityDescription(userId: number, description: string) {
+  return request<OpportunityProcessResponse>("/institution/opportunities/process", {
+    method: "POST",
+    body: JSON.stringify({ user_id: userId, description }),
+  });
+}
+
+export function submitInstitutionOpportunity(opportunity: OpportunitySubmission) {
+  return request<OpportunitySubmissionResponse>("/institution/opportunities", {
+    method: "POST",
+    body: JSON.stringify(opportunity),
+  });
+}
+
+export function getStudentRoadmap(userId: number) {
+  return request<RoadmapResponse>(`/student/${userId}/roadmap`);
+}
+
+export function generateStudentRoadmap(userId: number) {
+  return request<RoadmapResponse>(`/student/${userId}/roadmap`, {
+    method: "POST",
+  });
 }

@@ -3,8 +3,9 @@ import { ArrowRight, Loader2 } from "lucide-react";
 import { Link, useNavigate } from "react-router";
 import { ApiError, signup } from "../api";
 import FlowLayout from "../components/FlowLayout";
-import { Field, TextInput } from "../components/FormField";
+import { Field, SelectInput, TextInput } from "../components/FormField";
 import PageCard from "../components/PageCard";
+import type { UserRole } from "../types";
 
 export default function SignupPage() {
   const navigate = useNavigate();
@@ -12,6 +13,7 @@ export default function SignupPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [role, setRole] = useState<UserRole>("student");
   const [error, setError] = useState("");
   const [duplicateEmail, setDuplicateEmail] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -46,7 +48,7 @@ export default function SignupPage() {
 
     setLoading(true);
     try {
-      await signup(trimmedName, trimmedEmail, password);
+      await signup(trimmedName, trimmedEmail, password, role);
       navigate("/login", { state: { email: trimmedEmail, accountCreated: true } });
     } catch (requestError) {
       const isDuplicate =
@@ -70,9 +72,9 @@ export default function SignupPage() {
   return (
     <FlowLayout>
       <PageCard
-        eyebrow="Step 1 of 5"
+        eyebrow="Step 1 of 6"
         title="Create your account"
-        description="Use your university email to begin your Skill+ profile."
+        description="Choose the account type that matches how you will use Skill+."
       >
         <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-5">
           <Field label="Full name">
@@ -94,6 +96,16 @@ export default function SignupPage() {
               autoComplete="email"
               required
             />
+          </Field>
+
+          <Field label="Account type">
+            <SelectInput
+              value={role}
+              onChange={(event) => setRole(event.target.value as UserRole)}
+            >
+              <option value="student">Student — find opportunities and build a roadmap</option>
+              <option value="institution">Institution — publish opportunities</option>
+            </SelectInput>
           </Field>
 
           <div className="grid md:grid-cols-2 gap-5">
