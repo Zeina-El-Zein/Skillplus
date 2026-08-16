@@ -1,8 +1,10 @@
+export type UserRole = "student" | "institution";
+
 export type User = {
   id: number;
   name: string;
   email: string;
-  role: string;
+  role: UserRole;
 };
 
 export type AuthResponse = {
@@ -55,4 +57,94 @@ export type OpportunityRecommendation = {
 export type RecommendationsResponse = {
   user_id: number;
   recommendations: OpportunityRecommendation[];
+};
+
+export type InstitutionProfile = {
+  id?: number;
+  user_id: number;
+  institution_name: string;
+  website: string | null;
+  description: string | null;
+};
+
+export type OpportunityCategory =
+  | "Internship"
+  | "Project"
+  | "Workshop"
+  | "Bootcamp"
+  | "Hackathon"
+  | "Competition"
+  | "Mentorship"
+  | "Research";
+
+export type OpportunityDifficulty = "Beginner" | "Intermediate" | "Advanced";
+
+export type SuitableMajor =
+  | "Computer and Communications Engineering"
+  | "Computer Science"
+  | "Electrical Engineering"
+  | "Mechanical Engineering"
+  | "Civil Engineering"
+  | "Industrial Engineering"
+  | "Chemical Engineering"
+  | "Other"
+  | "Any";
+
+export type OpportunityDraft = {
+  title: string;
+  category: OpportunityCategory | null;
+  difficulty: OpportunityDifficulty | null;
+  suitable_major: SuitableMajor | null;
+  suitable_year: number | null;
+  required_skills: string[];
+  skills_gained: string[];
+  hours_per_week: number | null;
+  estimated_time: string | null;
+  cv_benefit: string | null;
+  link: string | null;
+  deadline: string | null;
+};
+
+export type OpportunityDraftState = {
+  draft: OpportunityDraft;
+  warning?: string;
+};
+
+export type OpportunitySubmission = Omit<
+  OpportunityDraft,
+  "category" | "difficulty" | "suitable_major"
+> & {
+  user_id: number;
+  category: OpportunityCategory;
+  difficulty: OpportunityDifficulty;
+  suitable_major: SuitableMajor;
+};
+
+export type OpportunityProcessResponse = OpportunityDraftState;
+
+export type OpportunitySubmissionResponse = {
+  message: string;
+  opportunity_id: number;
+  institution_id: number;
+  source: "institution";
+};
+
+export type RoadmapMilestone = {
+  title: string;
+  description: string;
+  skills_to_learn: string[];
+  suggested_timeframe: string;
+};
+
+export type RoadmapContent = {
+  summary: string;
+  milestones: RoadmapMilestone[];
+  recommended_next_steps: string[];
+};
+
+export type RoadmapResponse = {
+  user_id: number;
+  source: "ai" | "fallback";
+  generated_at?: string;
+  roadmap: RoadmapContent;
 };

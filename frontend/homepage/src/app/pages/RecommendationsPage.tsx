@@ -80,11 +80,14 @@ export default function RecommendationsPage() {
   }, [requestNumber, userId]);
 
   if (!user) return <Navigate to="/login" replace />;
+  if (user.role === "institution") {
+    return <Navigate to="/institution/dashboard" replace />;
+  }
 
   return (
     <FlowLayout>
       <PageCard
-        eyebrow="Step 5 of 5"
+        eyebrow="Step 5 of 6"
         title="Your matched opportunities"
         description={`Ranked for ${user.name} using your major, level, skills, interests and preferred opportunity type.`}
       >
@@ -128,6 +131,12 @@ export default function RecommendationsPage() {
               <ArrowLeft className="w-4 h-4" />
               Update profile
             </Link>
+            <Link
+              to="/roadmap"
+              className="inline-flex items-center justify-center gap-2 bg-blue-900 hover:bg-blue-800 text-white font-semibold px-6 py-3 rounded-full transition-colors"
+            >
+              Build my roadmap
+            </Link>
           </div>
         ) : (
           <div className="flex flex-col gap-5">
@@ -146,13 +155,22 @@ export default function RecommendationsPage() {
               />
             ))}
 
-            <Link
-              to="/results"
-              className="inline-flex items-center justify-center gap-2 border border-blue-200 text-blue-900 hover:bg-blue-50 font-semibold px-6 py-3 rounded-full transition-colors"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              Back to analysis
-            </Link>
+            <div className="grid sm:grid-cols-2 gap-3">
+              <Link
+                to="/results"
+                className="inline-flex items-center justify-center gap-2 border border-blue-200 text-blue-900 hover:bg-blue-50 font-semibold px-6 py-3 rounded-full transition-colors"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                Back to analysis
+              </Link>
+              <Link
+                to="/roadmap"
+                className="inline-flex items-center justify-center gap-2 bg-blue-900 hover:bg-blue-800 text-white font-semibold px-6 py-3 rounded-full transition-colors"
+              >
+                Build my roadmap
+                <Sparkles className="w-4 h-4" />
+              </Link>
+            </div>
           </div>
         )}
       </PageCard>

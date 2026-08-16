@@ -1,8 +1,14 @@
-import type { AnalysisResult, StudentProfile, User } from "./types";
+import type {
+  AnalysisResult,
+  OpportunityDraftState,
+  StudentProfile,
+  User,
+} from "./types";
 
 const USER_KEY = "skillplus_user";
 const PROFILE_KEY = "skillplus_profile";
 const RESULT_KEY = "skillplus_analysis";
+const OPPORTUNITY_DRAFT_KEY = "skillplus_opportunity_draft";
 
 function readValue<T>(key: string): T | null {
   const value = localStorage.getItem(key);
@@ -17,6 +23,12 @@ function readValue<T>(key: string): T | null {
 }
 
 export function saveUser(user: User) {
+  const previousUser = readValue<User>(USER_KEY);
+  if (previousUser && previousUser.id !== user.id) {
+    localStorage.removeItem(PROFILE_KEY);
+    localStorage.removeItem(RESULT_KEY);
+    localStorage.removeItem(OPPORTUNITY_DRAFT_KEY);
+  }
   localStorage.setItem(USER_KEY, JSON.stringify(user));
 }
 
@@ -40,8 +52,21 @@ export function getAnalysis() {
   return readValue<AnalysisResult>(RESULT_KEY);
 }
 
+export function saveOpportunityDraft(draft: OpportunityDraftState) {
+  localStorage.setItem(OPPORTUNITY_DRAFT_KEY, JSON.stringify(draft));
+}
+
+export function getOpportunityDraft() {
+  return readValue<OpportunityDraftState>(OPPORTUNITY_DRAFT_KEY);
+}
+
+export function clearOpportunityDraft() {
+  localStorage.removeItem(OPPORTUNITY_DRAFT_KEY);
+}
+
 export function clearSession() {
   localStorage.removeItem(USER_KEY);
   localStorage.removeItem(PROFILE_KEY);
   localStorage.removeItem(RESULT_KEY);
+  localStorage.removeItem(OPPORTUNITY_DRAFT_KEY);
 }

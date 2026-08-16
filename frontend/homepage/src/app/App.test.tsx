@@ -10,6 +10,13 @@ const user = {
   role: "student",
 };
 
+const institutionUser = {
+  id: 3,
+  name: "AUB Career Office",
+  email: "careers@mail.aub.edu",
+  role: "institution",
+};
+
 const recommendations = [
   {
     id: 8,
@@ -49,6 +56,10 @@ const recommendations = [
 
 function storeUser() {
   window.localStorage.setItem("skillplus_user", JSON.stringify(user));
+}
+
+function storeInstitutionUser() {
+  window.localStorage.setItem("skillplus_user", JSON.stringify(institutionUser));
 }
 
 describe("Member 5 complete student flow", () => {
@@ -146,6 +157,12 @@ describe("Member 5 complete student flow", () => {
       "/student/analyze/1",
       "/student/1/recommendations",
     ]);
+    expect(requests[0].body).toEqual({
+      name: user.name,
+      email: user.email,
+      password: "password123",
+      role: "student",
+    });
     expect(requests[2].body).toEqual({
       user_id: 1,
       major: "Computer and Communications Engineering",
@@ -409,5 +426,431 @@ describe("Member 5 complete student flow", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "Invalid or expired password reset token.",
     );
+  });
+});
+
+describe("Member 5 Issue #40 role-aware frontend", () => {
+  beforeEach(() => {
+    window.localStorage.clear();
+    vi.unstubAllGlobals();
+    window.history.pushState({}, "", "/signup");
+  });
+
+  it("completes the institution signup, profile, extraction, review and publish flow", async () => {
+    const description =
+      "Software Engineering Internship for Computer Science students. Requires Python and SQL.";
+    const requests: Array<{ path: string; method: string; body: unknown }> = [];
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = new URL(String(input));
+        const body = init?.body ? JSON.parse(String(init.body)) : null;
+        const method = init?.method || "GET";
+        requests.push({ path: url.pathname, method, body });
+
+        if (url.pathname === "/auth/signup") {
+          return Response.json({
+            message: "User created successfully",
+            user: institutionUser,
+          });
+        }
+
+        if (url.pathname === "/auth/login") {
+          return Response.json({
+            message: "Login successful",
+            user: institutionUser,
+          });
+        }
+
+        if (url.pathname === "/institution/3") {
+          return Response.json(
+            { detail: "Institution profile not found." },
+            { status: 404 },
+          );
+        }
+
+        if (url.pathname === "/institution-profile") {
+          return Response.json({
+            message: "Institution profile saved successfully",
+            institution_id: 7,
+          });
+        }
+
+        if (url.pathname === "/institution/opportunities/process") {
+          return Response.json({
+            draft: {
+              title: "Software Engineering Internship",
+              category: "Internship",
+              difficulty: "Intermediate",
+              suitable_major: "Computer Science",
+              suitable_year: 3,
+              required_skills: ["Python", "SQL"],
+              skills_gained: ["Backend Development", "Teamwork"],
+              hours_per_week: 10,
+              estimated_time: "3 months",
+              cv_benefit: "Practical software engineering experience",
+              link: "https://example.com/internship",
+              deadline: "2026-10-30",
+            },
+          });
+        }
+
+        if (url.pathname === "/institution/opportunities") {
+          return Response.json({
+            message: "Opportunity submitted successfully",
+            opportunity_id: 12,
+            institution_id: 7,
+            source: "institution",
+          });
+        }
+
+        return Response.json({ detail: "Not found" }, { status: 404 });
+      }),
+    );
+
+    const browser = userEvent.setup();
+    render(<App />);
+
+    await browser.type(screen.getByLabelText(/Full name/i), institutionUser.name);
+    await browser.type(screen.getByLabelText(/Email address/i), institutionUser.email);
+    await browser.selectOptions(screen.getByLabelText(/Account type/i), "institution");
+    await browser.type(screen.getByLabelText(/^Password$/i), "password123");
+    await browser.type(screen.getByLabelText(/Confirm password/i), "password123");
+    await browser.click(screen.getByRole("button", { name: /Create account/i }));
+
+    expect(await screen.findByRole("heading", { name: /Welcome back/i })).toBeInTheDocument();
+    await browser.type(screen.getByLabelText(/Password/i), "password123");
+    await browser.click(screen.getByRole("button", { name: /Log in/i }));
+
+    expect(
+      await screen.findByRole("heading", { name: /Institution dashboard/i }),
+    ).toBeInTheDocument();
+    expect(
+      await screen.findByRole("heading", { name: /Complete your institution profile/i }),
+    ).toBeInTheDocument();
+
+    await browser.type(screen.getByLabelText(/Institution name/i), "AUB Career Office");
+    await browser.type(
+      screen.getByLabelText(/^Website/i),
+      "https://www.aub.edu.lb/careerhub",
+    );
+    await browser.type(
+      screen.getByLabelText(/Institution description/i),
+      "Connects students with verified career opportunities.",
+    );
+    await browser.click(
+      screen.getByRole("button", { name: /Save institution profile/i }),
+    );
+
+    expect(
+      await screen.findByText("Institution profile saved successfully."),
+    ).toBeInTheDocument();
+    await browser.click(
+      screen.getByRole("link", { name: /Create opportunity/i }),
+    );
+
+    expect(
+      await screen.findByRole("heading", { name: /Paste an opportunity description/i }),
+    ).toBeInTheDocument();
+    await browser.type(screen.getByLabelText(/Opportunity description/i), description);
+    await browser.click(
+      screen.getByRole("button", { name: /Review extracted fields/i }),
+    );
+
+    expect(
+      await screen.findByRole("heading", { name: /Review every field/i }),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText(/Opportunity title/i)).toHaveValue(
+      "Software Engineering Internship",
+    );
+    expect(screen.getByLabelText(/Category/i)).toHaveValue("Internship");
+    expect(screen.getByLabelText(/Suitable major/i)).toHaveValue("Computer Science");
+
+    await browser.clear(screen.getByLabelText(/CV benefit/i));
+    await browser.type(
+      screen.getByLabelText(/CV benefit/i),
+      "Reviewed practical engineering experience",
+    );
+    await browser.click(
+      screen.getByRole("button", { name: /Publish reviewed opportunity/i }),
+    );
+
+    expect(
+      await screen.findByRole("heading", { name: /Published successfully/i }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/Opportunity ID: 12/i)).toBeInTheDocument();
+
+    await waitFor(() => expect(requests).toHaveLength(6));
+    expect(requests.map((request) => request.path)).toEqual([
+      "/auth/signup",
+      "/auth/login",
+      "/institution/3",
+      "/institution-profile",
+      "/institution/opportunities/process",
+      "/institution/opportunities",
+    ]);
+    expect(requests[0].body).toEqual({
+      name: institutionUser.name,
+      email: institutionUser.email,
+      password: "password123",
+      role: "institution",
+    });
+    expect(requests[3].body).toEqual({
+      user_id: 3,
+      institution_name: "AUB Career Office",
+      website: "https://www.aub.edu.lb/careerhub",
+      description: "Connects students with verified career opportunities.",
+    });
+    expect(requests[4].body).toEqual({
+      user_id: 3,
+      description,
+    });
+    expect(requests[5].body).toEqual({
+      user_id: 3,
+      title: "Software Engineering Internship",
+      category: "Internship",
+      difficulty: "Intermediate",
+      suitable_major: "Computer Science",
+      suitable_year: 3,
+      required_skills: ["Python", "SQL"],
+      skills_gained: ["Backend Development", "Teamwork"],
+      hours_per_week: 10,
+      estimated_time: "3 months",
+      cv_benefit: "Reviewed practical engineering experience",
+      link: "https://example.com/internship",
+      deadline: "2026-10-30",
+    });
+  });
+
+  it("shows the editable offline fallback honestly when AI extraction is unavailable", async () => {
+    storeInstitutionUser();
+    window.history.pushState({}, "", "/institution/opportunities/new");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        Response.json({
+          draft: {
+            title: "Open engineering workshop",
+            category: null,
+            difficulty: null,
+            suitable_major: null,
+            suitable_year: null,
+            required_skills: [],
+            skills_gained: [],
+            hours_per_week: null,
+            estimated_time: null,
+            cv_benefit: null,
+            link: null,
+            deadline: null,
+          },
+          warning:
+            "AI processing was unavailable. Please review and complete the draft manually.",
+        }),
+      ),
+    );
+
+    const browser = userEvent.setup();
+    render(<App />);
+
+    await browser.type(
+      screen.getByLabelText(/Opportunity description/i),
+      "Open engineering workshop",
+    );
+    await browser.click(
+      screen.getByRole("button", { name: /Review extracted fields/i }),
+    );
+
+    expect(await screen.findByText("Generated offline")).toBeInTheDocument();
+    expect(screen.getByText(/AI processing was unavailable/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Opportunity title/i)).toHaveValue(
+      "Open engineering workshop",
+    );
+
+    await browser.click(
+      screen.getByRole("button", { name: /Publish reviewed opportunity/i }),
+    );
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Complete the title, category, difficulty and suitable major.",
+    );
+  });
+
+  it("loads a cached fallback roadmap and identifies its source", async () => {
+    storeUser();
+    window.history.pushState({}, "", "/roadmap");
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) =>
+      Response.json({
+        user_id: 1,
+        source: "fallback",
+        generated_at: "2026-08-14T10:24:04",
+        roadmap: {
+          summary:
+            "A rules-based roadmap focused on closing skill gaps and preparing for top matches.",
+          milestones: [
+            {
+              title: "Strengthen version control skills",
+              description: "Practice Git workflows used in team projects.",
+              skills_to_learn: ["Git"],
+              suggested_timeframe: "2-3 weeks",
+            },
+          ],
+          recommended_next_steps: ["Learn Git", "Apply to your strongest match"],
+        },
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<App />);
+
+    expect(await screen.findByText("Generated offline")).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Strengthen version control skills" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Learn Git")).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(String(fetchMock.mock.calls[0][0])).toContain("/student/1/roadmap");
+    expect(fetchMock.mock.calls[0][1]?.method).toBeUndefined();
+  });
+
+  it("generates and displays a roadmap when no cached roadmap exists", async () => {
+    storeUser();
+    window.history.pushState({}, "", "/roadmap");
+    const requests: Array<{ method: string; path: string }> = [];
+    let attempt = 0;
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = new URL(String(input));
+        requests.push({ method: init?.method || "GET", path: url.pathname });
+        attempt += 1;
+
+        if (attempt === 1) {
+          return Response.json({ detail: "Roadmap not found." }, { status: 404 });
+        }
+
+        return Response.json({
+          user_id: 1,
+          source: "fallback",
+          roadmap: {
+            summary: "A practical fallback roadmap.",
+            milestones: [
+              {
+                title: "Build core skills",
+                description: "Practice the skills required by your strongest matches.",
+                skills_to_learn: ["Git"],
+                suggested_timeframe: "2-4 weeks",
+              },
+            ],
+            recommended_next_steps: ["Learn Git"],
+          },
+        });
+      }),
+    );
+
+    const browser = userEvent.setup();
+    render(<App />);
+
+    expect(await screen.findByText("No roadmap generated yet")).toBeInTheDocument();
+    await browser.click(
+      screen.getByRole("button", { name: /Generate my roadmap/i }),
+    );
+
+    expect(await screen.findByText("Generated offline")).toBeInTheDocument();
+    expect(screen.getByText("A practical fallback roadmap.")).toBeInTheDocument();
+    expect(requests).toEqual([
+      { method: "GET", path: "/student/1/roadmap" },
+      { method: "POST", path: "/student/1/roadmap" },
+    ]);
+  });
+
+  it("shows a roadmap loading error and retries the cached request", async () => {
+    storeUser();
+    window.history.pushState({}, "", "/roadmap");
+    let attempt = 0;
+    const fetchMock = vi.fn(async () => {
+      attempt += 1;
+      return attempt === 1
+        ? Response.json({ detail: "Roadmap service unavailable." }, { status: 503 })
+        : Response.json({
+            user_id: 1,
+            source: "ai",
+            roadmap: {
+              summary: "Recovered AI-assisted roadmap.",
+              milestones: [],
+              recommended_next_steps: [],
+            },
+          });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const browser = userEvent.setup();
+    render(<App />);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Roadmap service unavailable.",
+    );
+    await browser.click(
+      screen.getByRole("button", { name: /Try loading again/i }),
+    );
+
+    expect(await screen.findByText("AI-assisted roadmap")).toBeInTheDocument();
+    expect(screen.getByText("Recovered AI-assisted roadmap.")).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps institution users out of student-only routes", async () => {
+    storeInstitutionUser();
+    window.history.pushState({}, "", "/profile");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        Response.json({
+          id: 7,
+          user_id: 3,
+          institution_name: "AUB Career Office",
+          website: null,
+          description: null,
+        }),
+      ),
+    );
+
+    render(<App />);
+
+    expect(
+      await screen.findByRole("heading", { name: /Institution dashboard/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("heading", { name: /Build your student profile/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("keeps student users out of institution-only routes", async () => {
+    storeUser();
+    window.history.pushState({}, "", "/institution/dashboard");
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<App />);
+
+    expect(
+      await screen.findByRole("heading", { name: /Build your student profile/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("heading", { name: /Institution dashboard/i }),
+    ).not.toBeInTheDocument();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("removes unsupported homepage claims and names only real AI features", () => {
+    window.history.pushState({}, "", "/");
+    render(<App />);
+
+    expect(screen.queryByText(/2,400\+ students matched/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/95% fit accuracy/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/thousands of real opportunities/i)).not.toBeInTheDocument();
+    expect(screen.getByText("Rule-based profile analysis")).toBeInTheDocument();
+    expect(screen.getByText("Transparent match scores")).toBeInTheDocument();
+    expect(screen.getByText("AI-assisted roadmaps")).toBeInTheDocument();
   });
 });

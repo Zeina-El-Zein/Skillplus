@@ -1,20 +1,72 @@
-# Skill+ Frontend — Member 5 Student Flow
+# Skill+ Frontend — Member 5 Role-Aware Flows
 
 ## Task
 
-Build the frontend pages and test the complete Feature 1 and Feature 3 flow:
+Build and test both complete frontend journeys:
 
-`Sign up -> Log in -> Fill profile -> See analysis -> View ranked recommendations`
+~~~text
+Student:
+Sign up -> Log in -> Fill profile -> See analysis -> View ranked recommendations -> Roadmap
+
+Institution:
+Sign up -> Log in -> Institution dashboard/profile -> Paste description -> Edit draft -> Publish
+~~~
 
 ## Pages
 
-- `/signup`: Creates a student account using `POST /auth/signup`.
-- `/login`: Logs in using `POST /auth/login` and stores the returned user ID.
+- `/signup`: Creates a `student` or `institution` account using `POST /auth/signup`.
+- `/login`: Stores the returned user and redirects by role.
 - `/forgot-password`: Requests password reset instructions using `POST /auth/forgot-password`.
 - `/reset-password?token=...`: Changes the password using `POST /auth/reset-password`.
 - `/profile`: Sends the agreed student profile JSON to `POST /student-profile`.
 - `/results`: Displays level, strengths, missing skills and suggested next step from `POST /student/analyze/{user_id}`.
 - `/recommendations`: Displays ranked opportunity cards from `GET /student/{user_id}/recommendations`.
+- `/roadmap`: Loads the cached roadmap with `GET /student/{user_id}/roadmap` and generates/regenerates it with `POST /student/{user_id}/roadmap`.
+- `/institution/dashboard`: Loads or creates the institution profile.
+- `/institution/opportunities/new`: Sends a pasted description to `POST /institution/opportunities/process`.
+- `/institution/opportunities/review`: Shows every extracted field as editable and publishes only the reviewed version through `POST /institution/opportunities`.
+
+## Role-Aware Authentication
+
+Signup sends the backend-required role:
+
+~~~json
+{
+  "name": "Example User",
+  "email": "name@mail.aub.edu",
+  "password": "password123",
+  "role": "institution"
+}
+~~~
+
+Login redirects:
+
+- `student` → `/profile`
+- `institution` → `/institution/dashboard`
+
+Student-only pages redirect institution users to the institution dashboard. Institution-only pages redirect student users to the student profile flow.
+
+## Institution Opportunity Flow
+
+The institution dashboard loads `GET /institution/{user_id}`. If the profile does not exist, it creates one through `POST /institution-profile`.
+
+The submission page sends `{ user_id, description }` to `POST /institution/opportunities/process`. That endpoint never saves. Its draft is stored locally so the review page survives a refresh.
+
+The review page uses the backend's exact category, difficulty and major values, validates optional numbers and links, and sends the final reviewed fields to `POST /institution/opportunities`.
+
+When AI extraction is unavailable, the backend returns an editable fallback draft and warning. The frontend labels this state `Generated offline` and requires the institution to complete the missing canonical fields.
+
+## Student Roadmap
+
+The roadmap page first requests the cached roadmap. A `404` becomes a clear empty state rather than an error. Generate/regenerate sends a bodyless `POST` request.
+
+The page displays the summary, ordered milestones, skills to learn, suggested timeframes, recommended next steps, cached generation time, and the honest source label: `AI-assisted roadmap` or `Generated offline`.
+
+Loading, missing, backend-error, retry and fallback states are all implemented.
+
+## Honest Homepage Claims
+
+Unsupported claims such as `2,400+ students matched`, `95% fit accuracy`, and matching against `thousands` of opportunities were removed. The homepage now distinguishes transparent rule-based analysis/scoring from the two real AI-assisted features: opportunity extraction and roadmap generation.
 
 ## Design Feedback Update
 
@@ -168,4 +220,4 @@ npm run test:run
 npm run build
 ```
 
-The automated tests verify the complete five-step student flow, the exact recommendations endpoint and response, loading/empty/error/retry behavior, duplicate email, empty forms, refresh persistence, forgot-password requests, reset-password success, missing tokens, expired tokens, API paths and exact request payloads.
+The automated tests verify both complete role flows; exact role, institution, draft, publish and roadmap requests; editable AI fallback behavior; roadmap cache/generation/errors/retries; role guards; corrected homepage claims; and all earlier recommendation, validation, refresh and password-reset behavior.
