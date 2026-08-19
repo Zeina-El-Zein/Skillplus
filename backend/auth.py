@@ -1,6 +1,9 @@
 import hashlib
 import os
 import secrets
+import smtplib
+
+from email.message import EmailMessage
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy import text
@@ -23,6 +26,11 @@ FRONTEND_URL = os.getenv(
     "http://localhost:5173"
 ).rstrip("/")
 
+SMTP_EMAIL = os.getenv("SMTP_EMAIL")
+SMTP_APP_PASSWORD = os.getenv("SMTP_APP_PASSWORD")
+SMTP_HOST = os.getenv("SMTP_HOST", "smtp.gmail.com")
+SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
+
 GENERIC_RESET_MESSAGE = (
     "If an account exists, password reset instructions have been sent."
 )
@@ -37,19 +45,57 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 def hash_reset_token(token: str) -> str:
     return hashlib.sha256(token.encode("utf-8")).hexdigest()
 
+def send_reset_email(recipient_email: str, reset_link: str):
+    if not SMTP_EMAIL or not SMTP_APP_PASSWORD:
+        raise RuntimeError("SMTP email configuration is missing.")
+
+    message = EmailMessage()
+
+    message["Subject"] = "Reset your Skill+ password"
+    message["From"] = f"Skill+ <{SMTP_EMAIL}>"
+    message["To"] = recipient_email
+
+    message.set_content(
+        f"""
+Hello,
+
+We received a request to reset your Skill+ password.
+
+Use the following link to choose a new password:
+
+{reset_link}
+
+This link will expire in 30 minutes.
+
+If you did not request a password reset, you can ignore this email.
+
+Skill+ Team
+"""
+    )
+
+    with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
+        server.starttls()
+        server.login(SMTP_EMAIL, SMTP_APP_PASSWORD)
+        server.send_message(message)
+
 #sign up endpoint 
 @router.post("/signup")
 def signup(user: SignupRequest, db: Session = Depends(get_db)):
+    normalized_email = user.email.strip().lower()
     #search for an existing user 
     existing_user = db.execute(
-        text("SELECT * FROM users WHERE email = :email"),
-        {"email": user.email}
+        text("SELECT * FROM users WHERE LOWER(email) = LOWER(:email)"),
+        {"email": normalized_email}
     ).fetchone()
 
     if existing_user:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Email already registered"
+            detail=(
+            "An account already exists with this email. "
+            "Each email can only be associated with one Skill+ account and role. "
+            "Please log in to your existing account or use a different email."
+        )
         )
     #if user does not already exist 
     hashed_password = hash_password(user.password)
@@ -62,7 +108,7 @@ def signup(user: SignupRequest, db: Session = Depends(get_db)):
         """),
         {
             "name": user.name,
-            "email": user.email,
+            "email": normalized_email,
             "password_hash": hashed_password,
             "role": user.role
         }
@@ -84,8 +130,8 @@ def signup(user: SignupRequest, db: Session = Depends(get_db)):
 @router.post("/login")
 def login(user: LoginRequest, db: Session = Depends(get_db)):
     existing_user = db.execute(
-        text("SELECT * FROM users WHERE email = :email"),
-        {"email": user.email}
+        text("SELECT * FROM users WHERE LOWER(email) = LOWER(:email)"),
+        {"email": user.email.strip()}
     ).fetchone()
 
     if not existing_user:
@@ -118,11 +164,11 @@ def forgot_password(
     try:
         existing_user = db.execute(
             text("""
-                SELECT id
+                SELECT id, email
                 FROM users
                 WHERE LOWER(email) = LOWER(:email)
             """),
-            {"email": request.email}
+            {"email": request.email.strip()}
         ).mappings().fetchone()
 
         # Always return the same response, even when the email does not exist.
@@ -168,11 +214,10 @@ def forgot_password(
             f"{FRONTEND_URL}/reset-password?token={raw_token}"
         )
 
-        # Development only.
-        # Later, send this link by email instead of printing it.
-        print("\nPASSWORD RESET LINK:")
-        print(reset_link)
-        print()
+        send_reset_email(
+            existing_user["email"],
+            reset_link
+        )
 
         return {"message": GENERIC_RESET_MESSAGE}
 
