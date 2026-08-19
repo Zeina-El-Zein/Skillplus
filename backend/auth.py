@@ -81,10 +81,11 @@ Skill+ Team
 #sign up endpoint 
 @router.post("/signup")
 def signup(user: SignupRequest, db: Session = Depends(get_db)):
+    normalized_email = user.email.strip().lower()
     #search for an existing user 
     existing_user = db.execute(
-        text("SELECT * FROM users WHERE email = :email"),
-        {"email": user.email}
+        text("SELECT * FROM users WHERE LOWER(email) = LOWER(:email)"),
+        {"email": normalized_email}
     ).fetchone()
 
     if existing_user:
@@ -103,7 +104,7 @@ def signup(user: SignupRequest, db: Session = Depends(get_db)):
         """),
         {
             "name": user.name,
-            "email": user.email,
+            "email": normalized_email,
             "password_hash": hashed_password,
             "role": user.role
         }
@@ -125,8 +126,8 @@ def signup(user: SignupRequest, db: Session = Depends(get_db)):
 @router.post("/login")
 def login(user: LoginRequest, db: Session = Depends(get_db)):
     existing_user = db.execute(
-        text("SELECT * FROM users WHERE email = :email"),
-        {"email": user.email}
+        text("SELECT * FROM users WHERE LOWER(email) = LOWER(:email)"),
+        {"email": user.email.strip()}
     ).fetchone()
 
     if not existing_user:
@@ -163,7 +164,7 @@ def forgot_password(
                 FROM users
                 WHERE LOWER(email) = LOWER(:email)
             """),
-            {"email": request.email}
+            {"email": request.email.strip()}
         ).mappings().fetchone()
 
         # Always return the same response, even when the email does not exist.
