@@ -1,6 +1,17 @@
 import json
-from fastapi import FastAPI, Depends, HTTPException, status
+from pathlib import Path
+from uuid import uuid4
+
+from fastapi import (
+    FastAPI,
+    Depends,
+    HTTPException,
+    status,
+    UploadFile,
+    File
+)
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 
@@ -27,6 +38,112 @@ from prompts import (
 
 
 app = FastAPI(title="Skill+ Backend")
+
+
+# ============================================================
+# FILE UPLOAD CONFIGURATION
+# ============================================================
+
+BASE_DIR = Path(__file__).resolve().parent
+UPLOAD_DIR = BASE_DIR / "uploads"
+LOGO_DIR = UPLOAD_DIR / "logos"
+PROFILE_PICTURE_DIR = UPLOAD_DIR / "profile-pictures"
+
+LOGO_DIR.mkdir(parents=True, exist_ok=True)
+PROFILE_PICTURE_DIR.mkdir(parents=True, exist_ok=True)
+
+ALLOWED_IMAGE_TYPES = {
+    "image/jpeg": ".jpg",
+    "image/png": ".png",
+    "image/webp": ".webp"
+}
+
+MAX_FILE_SIZE = 5 * 1024 * 1024  # 5 MB
+
+app.mount(
+    "/uploads",
+    StaticFiles(directory=str(UPLOAD_DIR)),
+    name="uploads"
+)
+
+
+# ============================================================
+# FILE UPLOAD HELPERS
+# ============================================================
+
+async def validate_image(file: UploadFile):
+    if file.content_type not in ALLOWED_IMAGE_TYPES:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Only JPG, PNG, and WEBP images are allowed."
+        )
+
+    contents = await file.read()
+
+    if not contents:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Uploaded file is empty."
+        )
+
+    if len(contents) > MAX_FILE_SIZE:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Image must be 5 MB or smaller."
+        )
+
+    extension = ALLOWED_IMAGE_TYPES[file.content_type]
+
+    # Basic file-signature validation.
+    if file.content_type == "image/jpeg":
+        valid_signature = contents.startswith(b"\xff\xd8\xff")
+
+    elif file.content_type == "image/png":
+        valid_signature = contents.startswith(
+            b"\x89PNG\r\n\x1a\n"
+        )
+
+    elif file.content_type == "image/webp":
+        valid_signature = (
+            len(contents) >= 12
+            and contents[:4] == b"RIFF"
+            and contents[8:12] == b"WEBP"
+        )
+
+    else:
+        valid_signature = False
+
+    if not valid_signature:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="The uploaded file is not a valid image."
+        )
+
+    return contents, extension
+
+
+def remove_old_upload(relative_path: str | None):
+    if not relative_path:
+        return
+
+    # Database paths look like:
+    # /uploads/logos/example.png
+    # /uploads/profile-pictures/example.png
+    clean_path = relative_path.lstrip("/")
+
+    if not clean_path.startswith("uploads/"):
+        return
+
+    old_file = Path(clean_path)
+
+    try:
+        if old_file.exists() and old_file.is_file():
+            old_file.unlink()
+    except OSError:
+        # Failure to remove the old image should not stop
+        # the new image from being uploaded.
+        pass
+
 
 app.add_middleware(
     CORSMiddleware,
@@ -157,7 +274,8 @@ def get_student_profile(
                     career_goal,
                     available_time_per_week,
                     preferred_opportunity_type,
-                    level
+                    level,
+                    profile_picture_url
                 FROM students
                 WHERE user_id = :user_id
             """),
@@ -183,7 +301,9 @@ def get_student_profile(
                 profile["available_time_per_week"],
             "preferred_opportunity_type":
                 profile["preferred_opportunity_type"],
-            "level": profile["level"]
+            "level": profile["level"],
+            "profile_picture_url":
+                profile["profile_picture_url"]
         }
 
     except HTTPException:
@@ -194,6 +314,101 @@ def get_student_profile(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Could not retrieve student profile."
         )
+
+
+# ============================================================
+# STUDENT PROFILE PICTURE UPLOAD
+# ============================================================
+
+@app.post("/student/{user_id}/profile-picture")
+async def upload_student_profile_picture(
+    user_id: int,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db)
+):
+    try:
+        student = db.execute(
+            text("""
+                SELECT
+                    id,
+                    profile_picture_url
+                FROM students
+                WHERE user_id = :user_id
+            """),
+            {"user_id": user_id}
+        ).mappings().fetchone()
+
+        if student is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Student profile not found."
+            )
+
+        contents, extension = await validate_image(file)
+
+        filename = (
+            f"{student['id']}_{uuid4().hex}{extension}"
+        )
+
+        file_path = PROFILE_PICTURE_DIR / filename
+
+        relative_path = (
+            f"/uploads/profile-pictures/{filename}"
+        )
+
+        try:
+            file_path.write_bytes(contents)
+        except OSError:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Could not store profile picture."
+            )
+
+        old_path = student["profile_picture_url"]
+
+        try:
+            db.execute(
+                text("""
+                    UPDATE students
+                    SET profile_picture_url = :profile_picture_url
+                    WHERE user_id = :user_id
+                """),
+                {
+                    "profile_picture_url": relative_path,
+                    "user_id": user_id
+                }
+            )
+
+            db.commit()
+
+        except Exception:
+            db.rollback()
+
+            if file_path.exists():
+                file_path.unlink()
+
+            raise
+
+        remove_old_upload(old_path)
+
+        return {
+            "message": "Profile picture uploaded successfully",
+            "profile_picture_url": relative_path
+        }
+
+    except HTTPException:
+        raise
+
+    except Exception:
+        db.rollback()
+
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Could not upload profile picture."
+        )
+
+    finally:
+        await file.close()
 
 
 @app.post("/student/analyze/{user_id}")
@@ -337,7 +552,8 @@ def get_institution_profile(
                 user_id,
                 institution_name,
                 website,
-                description
+                description,
+                logo_url
             FROM institutions
             WHERE user_id = :user_id
         """),
@@ -351,6 +567,222 @@ def get_institution_profile(
         )
 
     return institution
+
+
+# ============================================================
+# INSTITUTION LOGO UPLOAD
+# ============================================================
+
+@app.post("/institution/{user_id}/logo")
+async def upload_institution_logo(
+    user_id: int,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db)
+):
+    try:
+        require_institution(user_id, db)
+
+        institution = db.execute(
+            text("""
+                SELECT
+                    id,
+                    logo_url
+                FROM institutions
+                WHERE user_id = :user_id
+            """),
+            {"user_id": user_id}
+        ).mappings().fetchone()
+
+        if institution is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Institution profile not found."
+            )
+
+        contents, extension = await validate_image(file)
+
+        filename = (
+            f"{institution['id']}_{uuid4().hex}{extension}"
+        )
+
+        file_path = LOGO_DIR / filename
+
+        relative_path = f"/uploads/logos/{filename}"
+
+        try:
+            file_path.write_bytes(contents)
+        except OSError:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Could not store institution logo."
+            )
+
+        old_path = institution["logo_url"]
+
+        try:
+            db.execute(
+                text("""
+                    UPDATE institutions
+                    SET logo_url = :logo_url
+                    WHERE user_id = :user_id
+                """),
+                {
+                    "logo_url": relative_path,
+                    "user_id": user_id
+                }
+            )
+
+            db.commit()
+
+        except Exception:
+            db.rollback()
+
+            if file_path.exists():
+                file_path.unlink()
+
+            raise
+
+        remove_old_upload(old_path)
+
+        return {
+            "message": "Institution logo uploaded successfully",
+            "logo_url": relative_path
+        }
+
+    except HTTPException:
+        raise
+
+    except Exception:
+        db.rollback()
+
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Could not upload institution logo."
+        )
+
+    finally:
+        await file.close()
+        
+        
+# ============================================================
+# INSTITUTION BROWSE OWN OPPORTUNITIES
+# ============================================================
+
+@app.get("/institution/{user_id}/opportunities")
+def get_institution_own_opportunities(
+    user_id: int,
+    db: Session = Depends(get_db)
+):
+    try:
+        require_institution(user_id, db)
+
+        institution = db.execute(
+            text("""
+                SELECT id
+                FROM institutions
+                WHERE user_id = :user_id
+            """),
+            {"user_id": user_id}
+        ).mappings().fetchone()
+
+        if institution is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Institution profile not found."
+            )
+
+        opportunities = db.execute(
+            text("""
+                SELECT
+                    id,
+                    title,
+                    category,
+                    suitable_major,
+                    suitable_year,
+                    difficulty,
+                    required_skills,
+                    skills_gained,
+                    deadline,
+                    estimated_time,
+                    cv_benefit,
+                    link,
+                    hours_per_week,
+                    institution_id,
+                    source
+                FROM opportunities
+                WHERE institution_id = :institution_id
+                ORDER BY id
+            """),
+            {
+                "institution_id": institution["id"]
+            }
+        ).mappings().all()
+
+        return [
+            dict(opportunity)
+            for opportunity in opportunities
+        ]
+
+    except HTTPException:
+        raise
+
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Could not retrieve institution opportunities."
+        ) 
+        
+
+# ============================================================
+# INSTITUTION BROWSE ALL OPPORTUNITIES
+# ============================================================
+
+@app.get("/institution/{user_id}/opportunities/all")
+def get_institution_all_opportunities(
+    user_id: int,
+    db: Session = Depends(get_db)
+):
+    try:
+        require_institution(user_id, db)
+
+        opportunities = db.execute(
+            text("""
+                SELECT
+                    id,
+                    title,
+                    category,
+                    suitable_major,
+                    suitable_year,
+                    difficulty,
+                    required_skills,
+                    skills_gained,
+                    deadline,
+                    estimated_time,
+                    cv_benefit,
+                    link,
+                    hours_per_week,
+                    institution_id,
+                    source
+                FROM opportunities
+                WHERE deadline IS NULL
+                    OR deadline >= CURRENT_DATE
+                ORDER BY id
+            """)
+        ).mappings().all()
+
+        return [
+            dict(opportunity)
+            for opportunity in opportunities
+        ]
+
+    except HTTPException:
+        raise
+
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Could not retrieve opportunities."
+        )               
 
 
 # ============================================================
@@ -737,7 +1169,8 @@ def submit_institution_opportunity(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Could not save opportunity."
         )
-        
+
+
 # ============================================================
 # FEATURE 4 / ISSUE #38
 # Generate or regenerate a student roadmap
@@ -928,7 +1361,8 @@ def generate_student_roadmap(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Could not generate roadmap."
-        )     
+        )
+
 
 # ============================================================
 # FEATURE 4 / ISSUE #38
@@ -974,4 +1408,4 @@ def get_cached_student_roadmap(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Could not retrieve roadmap."
-        )           
+        )
