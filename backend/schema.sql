@@ -37,6 +37,7 @@ CREATE TABLE IF NOT EXISTS students (
     available_time_per_week INTEGER,
     preferred_opportunity_type VARCHAR(100),
     level VARCHAR(50),
+    profile_picture_url VARCHAR(500),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -45,7 +46,9 @@ CREATE TABLE IF NOT EXISTS institutions (
     user_id INTEGER UNIQUE NOT NULL REFERENCES users(id),
     institution_name VARCHAR(255) NOT NULL,
     website VARCHAR(255),
-    description TEXT
+    description TEXT,
+    logo_url VARCHAR(500)
+
 );
 
 CREATE TABLE IF NOT EXISTS opportunities (

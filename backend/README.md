@@ -930,6 +930,18 @@ Run the existing prompt/scoring tests with:
 ```bash
 python -m pytest test_scoring.py test_prompts.py -v
 ```
+## Profile Image Paths
+
+`institutions.logo_url` and `students.profile_picture_url` store a
+**relative** path to an uploaded file, for example:
+
+```text
+/uploads/logos/3.png
+/uploads/profile-pictures/7.jpg
+```
+
+Absolute URLs are not stored, so links keep working after deployment.
+The frontend prepends its configured API base URL.
 
 ---
 
@@ -1335,6 +1347,12 @@ For an existing local Skill+ database, run:
 
 ```bash
 psql -U postgres -d skillplus -f backend/schema.sql
+```
+
+and:
+
+```bash
+psql -U postgres -d skillplus -c "ALTER TABLE students ADD COLUMN IF NOT EXISTS profile_picture_url VARCHAR(500);"
 ```
 
 Because:
