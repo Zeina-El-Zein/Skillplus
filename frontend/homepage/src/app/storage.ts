@@ -6,6 +6,8 @@ import type {
 } from "./types";
 
 const USER_KEY = "skillplus_user";
+const SESSION_EXPIRY_KEY = "skillplus_session_expiry";
+const SESSION_DURATION_MS = 14 * 24 * 60 * 60 * 1000;
 const PROFILE_KEY = "skillplus_profile";
 const RESULT_KEY = "skillplus_analysis";
 const OPPORTUNITY_DRAFT_KEY = "skillplus_opportunity_draft";
@@ -30,10 +32,45 @@ export function saveUser(user: User) {
     localStorage.removeItem(OPPORTUNITY_DRAFT_KEY);
   }
   localStorage.setItem(USER_KEY, JSON.stringify(user));
+  localStorage.setItem(
+  SESSION_EXPIRY_KEY,
+  String(Date.now() + SESSION_DURATION_MS)
+);
 }
 
 export function getUser() {
-  return readValue<User>(USER_KEY);
+  const user = readValue<User>(USER_KEY);
+
+  if (!user) {
+    return null;
+  }
+
+  const storedExpiry = localStorage.getItem(SESSION_EXPIRY_KEY);
+
+  // Existing sessions created before expiry was added
+  if (!storedExpiry) {
+    localStorage.setItem(
+      SESSION_EXPIRY_KEY,
+      String(Date.now() + SESSION_DURATION_MS)
+    );
+
+    return user;
+  }
+
+  const expiresAt = Number(storedExpiry);
+
+  if (!Number.isFinite(expiresAt) || Date.now() > expiresAt) {
+    clearSession();
+    return null;
+  }
+
+  // User came back before expiry, so extend the session.
+  localStorage.setItem(
+    SESSION_EXPIRY_KEY,
+    String(Date.now() + SESSION_DURATION_MS)
+  );
+
+  return user;
 }
 
 export function saveProfile(profile: StudentProfile) {
@@ -69,4 +106,5 @@ export function clearSession() {
   localStorage.removeItem(PROFILE_KEY);
   localStorage.removeItem(RESULT_KEY);
   localStorage.removeItem(OPPORTUNITY_DRAFT_KEY);
+  localStorage.removeItem(SESSION_EXPIRY_KEY);
 }
