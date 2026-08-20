@@ -262,15 +262,17 @@ The frontend now supports both roles returned by authentication.
 ### Student flow
 
 ~~~text
-signup → login → profile → analysis → recommendations → roadmap
+signup → profile → analysis → recommendations → roadmap
 ~~~
 
-The roadmap screen uses `GET /student/{user_id}/roadmap` and `POST /student/{user_id}/roadmap`. It shows cached, loading, missing, error, retry, AI-assisted and rules-based fallback states.
+Returning students log in to `/recommendations` when the authentication response reports `has_profile: true`; otherwise they continue to `/profile`. The roadmap screen uses `GET /student/{user_id}/roadmap` and `POST /student/{user_id}/roadmap`. It shows cached, animated generation, loading, missing, error, retry, AI-assisted and rules-based fallback states.
+
+Student profile pictures use `POST /student/{user_id}/profile-picture`. Existing profiles and picture paths can be restored with `GET /student/profile/{user_id}`.
 
 ### Institution flow
 
 ~~~text
-signup → login → dashboard/profile → description → editable review → publish
+signup → dashboard/profile → description → editable review → publish
 ~~~
 
 The institution screens use:
@@ -278,6 +280,7 @@ The institution screens use:
 ~~~http
 GET  /institution/{user_id}
 POST /institution-profile
+POST /institution/{user_id}/logo
 POST /institution/opportunities/process
 POST /institution/opportunities
 ~~~
@@ -286,7 +289,7 @@ The process endpoint only prepares a draft. The institution must review and edit
 
 ### Homepage accuracy
 
-Unsupported user counts, accuracy percentages and opportunity-volume claims were removed. Rule-based analysis and scoring are described separately from AI-assisted opportunity extraction and roadmap generation.
+Unsupported user counts, accuracy percentages, opportunity-volume claims and non-functional footer links were removed. Rule-based analysis and scoring are described separately from AI-assisted opportunity extraction and roadmap generation. The footer contact address is a working email link.
 
 ### Frontend verification
 
@@ -297,4 +300,4 @@ npm run test:run
 npm run build
 ~~~
 
-The Issue #40 suite covers both role flows, exact API payloads, role guards, fallback behavior, roadmap caching/generation/error states, and all previously implemented Member 5 behavior.
+The suite covers both role flows, `has_profile` routing, session expiry, exact API payloads, image uploads, role guards, fallback behavior, roadmap caching/generation/error/animation states, and all previously implemented Member 5 behavior.

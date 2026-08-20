@@ -5,6 +5,7 @@ import { login } from "../api";
 import FlowLayout from "../components/FlowLayout";
 import { Field, TextInput } from "../components/FormField";
 import PageCard from "../components/PageCard";
+import { authenticatedHome } from "../routing";
 import { saveUser } from "../storage";
 
 type LoginState = {
@@ -28,8 +29,12 @@ export default function LoginPage() {
 
     try {
       const response = await login(email.trim(), password);
-      saveUser(response.user);
-      navigate(response.user.role === "institution" ? "/institution/dashboard" : "/profile");
+      const sessionUser = {
+        ...response.user,
+        has_profile: response.has_profile,
+      };
+      saveUser(sessionUser);
+      navigate(authenticatedHome(sessionUser), { replace: true });
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "Could not log in.");
     } finally {

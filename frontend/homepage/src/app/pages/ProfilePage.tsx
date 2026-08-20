@@ -1,9 +1,16 @@
-import { useMemo, useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { ArrowRight, Loader2 } from "lucide-react";
 import { Navigate, useNavigate } from "react-router";
-import { analyzeStudentProfile, saveStudentProfile } from "../api";
+import {
+  ApiError,
+  analyzeStudentProfile,
+  getStudentProfile,
+  saveStudentProfile,
+  uploadStudentProfilePicture,
+} from "../api";
 import FlowLayout from "../components/FlowLayout";
 import { Field, SelectInput, TextInput } from "../components/FormField";
+import ImageUploadField from "../components/ImageUploadField";
 import PageCard from "../components/PageCard";
 import {
   listToText,
@@ -11,29 +18,84 @@ import {
   PROFILE_MAJORS,
   textToList,
 } from "../constants";
-import { getProfile, getUser, saveAnalysis, saveProfile } from "../storage";
+import {
+  getProfile,
+  getUser,
+  saveAnalysis,
+  saveProfile,
+  saveUser,
+} from "../storage";
 import type { StudentProfile } from "../types";
+
+function profileToForm(profile: StudentProfile | null) {
+  return {
+    major: profile?.major || "",
+    year: String(profile?.year_of_study || ""),
+    courses: listToText(profile?.courses_taken || []),
+    skills: listToText(profile?.current_skills || []),
+    interests: listToText(profile?.interests || []),
+    careerGoal: profile?.career_goal || "",
+    availableTime: String(profile?.available_time_per_week || ""),
+    opportunityType: profile?.preferred_opportunity_type || "Internship",
+  };
+}
 
 export default function ProfilePage() {
   const navigate = useNavigate();
   const user = getUser();
-  const previous = getProfile();
-  const defaults = useMemo(
-    () => ({
-      major: previous?.major || "",
-      year: String(previous?.year_of_study || ""),
-      courses: listToText(previous?.courses_taken || []),
-      skills: listToText(previous?.current_skills || []),
-      interests: listToText(previous?.interests || []),
-      careerGoal: previous?.career_goal || "",
-      availableTime: String(previous?.available_time_per_week || ""),
-      opportunityType: previous?.preferred_opportunity_type || "Internship",
-    }),
-    [previous],
+  const [savedProfile, setSavedProfile] = useState<StudentProfile | null>(() =>
+    getProfile(),
   );
-  const [form, setForm] = useState(defaults);
+  const [form, setForm] = useState(() => profileToForm(savedProfile));
+  const [profilePicture, setProfilePicture] = useState<File | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [loadingExisting, setLoadingExisting] = useState(
+    !savedProfile && user?.role === "student" && user.has_profile === true,
+  );
+
+  useEffect(() => {
+    if (
+      !user ||
+      user.role !== "student" ||
+      user.has_profile !== true ||
+      savedProfile
+    ) {
+      setLoadingExisting(false);
+      return;
+    }
+
+    let active = true;
+    setLoadingExisting(true);
+    setError("");
+
+    getStudentProfile(user.id)
+      .then((profile) => {
+        if (!active) return;
+        setSavedProfile(profile);
+        setForm(profileToForm(profile));
+        saveProfile(profile);
+      })
+      .catch((requestError) => {
+        if (!active) return;
+        if (requestError instanceof ApiError && requestError.status === 404) {
+          saveUser({ ...user, has_profile: false });
+          return;
+        }
+        setError(
+          requestError instanceof Error
+            ? requestError.message
+            : "Could not load your saved profile.",
+        );
+      })
+      .finally(() => {
+        if (active) setLoadingExisting(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [savedProfile, user?.has_profile, user?.id, user?.role]);
 
   if (!user) return <Navigate to="/login" replace />;
   if (user.role === "institution") {
@@ -98,8 +160,17 @@ export default function ProfilePage() {
     setLoading(true);
     try {
       await saveStudentProfile(profile);
+      let profilePictureUrl = savedProfile?.profile_picture_url || null;
+
+      if (profilePicture) {
+        const upload = await uploadStudentProfilePicture(user.id, profilePicture);
+        profilePictureUrl = upload.profile_picture_url;
+      }
+
       const analysis = await analyzeStudentProfile(profile);
-      saveProfile(profile);
+      const completeProfile = { ...profile, profile_picture_url: profilePictureUrl };
+      setSavedProfile(completeProfile);
+      saveProfile(completeProfile);
       saveAnalysis(analysis);
       navigate("/results");
     } catch (requestError) {
@@ -116,7 +187,23 @@ export default function ProfilePage() {
         title="Build your student profile"
         description="These fields exactly match the student profile API and database agreed by the team."
       >
+        {loadingExisting ? (
+          <div role="status" className="flex flex-col items-center gap-3 py-14 text-blue-900">
+            <Loader2 className="h-8 w-8 animate-spin" />
+            <p className="font-semibold">Loading your saved profile...</p>
+          </div>
+        ) : (
         <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-6">
+          <ImageUploadField
+            label="Profile picture (optional)"
+            currentUrl={savedProfile?.profile_picture_url}
+            currentAlt={`${user.name}'s profile picture`}
+            selectedFile={profilePicture}
+            onFileChange={setProfilePicture}
+            disabled={loading}
+            shape="circle"
+          />
+
           <div className="grid md:grid-cols-2 gap-5">
             <Field label="Major">
               <SelectInput
@@ -219,6 +306,7 @@ export default function ProfilePage() {
             Save and analyze profile
           </button>
         </form>
+        )}
       </PageCard>
     </FlowLayout>
   );
