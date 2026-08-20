@@ -12,10 +12,13 @@ import { Link, Navigate } from "react-router";
 import {
   ApiError,
   getInstitutionProfile,
+  resolveApiAssetUrl,
   saveInstitutionProfile,
+  uploadInstitutionLogo,
 } from "../api";
 import FlowLayout from "../components/FlowLayout";
 import { Field, TextAreaInput, TextInput } from "../components/FormField";
+import ImageUploadField from "../components/ImageUploadField";
 import PageCard from "../components/PageCard";
 import { getUser } from "../storage";
 import type { InstitutionProfile } from "../types";
@@ -47,6 +50,7 @@ export default function InstitutionDashboardPage() {
   const userId = user?.id;
   const [profile, setProfile] = useState<InstitutionProfile | null>(null);
   const [form, setForm] = useState<InstitutionForm>(EMPTY_FORM);
+  const [logo, setLogo] = useState<File | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -55,6 +59,7 @@ export default function InstitutionDashboardPage() {
   const [reloadNumber, setReloadNumber] = useState(0);
   const safeProfileWebsite =
     profile?.website && isSafeWebsite(profile.website) ? profile.website : null;
+  const safeLogoUrl = resolveApiAssetUrl(profile?.logo_url);
 
   useEffect(() => {
     if (!userId || user?.role !== "institution") {
@@ -70,6 +75,7 @@ export default function InstitutionDashboardPage() {
       .then((result) => {
         if (!active) return;
         setProfile(result);
+        setLogo(null);
         setForm({
           institutionName: result.institution_name || "",
           website: result.website || "",
@@ -132,13 +138,21 @@ export default function InstitutionDashboardPage() {
         description: form.description.trim() || null,
       });
 
+      let logoUrl = profile?.logo_url || null;
+      if (logo) {
+        const upload = await uploadInstitutionLogo(user.id, logo);
+        logoUrl = upload.logo_url;
+      }
+
       setProfile({
         id: response.institution_id,
         user_id: user.id,
         institution_name: institutionName,
         website: website || null,
         description: form.description.trim() || null,
+        logo_url: logoUrl,
       });
+      setLogo(null);
       setEditing(false);
       setMessage("Institution profile saved successfully.");
     } catch (requestError) {
@@ -191,9 +205,17 @@ export default function InstitutionDashboardPage() {
               <div className="rounded-2xl border border-blue-100 bg-gradient-to-br from-blue-50 to-white p-6">
                 <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
                   <div className="flex items-start gap-4">
-                    <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl bg-blue-900 text-white">
-                      <Building2 className="h-6 w-6" />
-                    </div>
+                    {safeLogoUrl ? (
+                      <img
+                        src={safeLogoUrl}
+                        alt={`${profile.institution_name} logo`}
+                        className="h-12 w-12 flex-shrink-0 rounded-2xl border border-blue-100 bg-white object-cover"
+                      />
+                    ) : (
+                      <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl bg-blue-900 text-white">
+                        <Building2 className="h-6 w-6" />
+                      </div>
+                    )}
                     <div>
                       <h2 className="text-2xl font-extrabold text-gray-900">
                         {profile.institution_name}
@@ -237,6 +259,15 @@ export default function InstitutionDashboardPage() {
                     A saved institution profile is required before an opportunity can be published.
                   </p>
                 </div>
+
+                <ImageUploadField
+                  label="Institution logo (optional)"
+                  currentUrl={profile?.logo_url}
+                  currentAlt={`${form.institutionName || "Institution"} logo`}
+                  selectedFile={logo}
+                  onFileChange={setLogo}
+                  disabled={saving}
+                />
 
                 <Field label="Institution name">
                   <TextInput
@@ -284,6 +315,7 @@ export default function InstitutionDashboardPage() {
                       type="button"
                       onClick={() => {
                         setError("");
+                        setLogo(null);
                         setEditing(false);
                       }}
                       className="rounded-full border border-blue-200 px-6 py-3 font-semibold text-blue-900 hover:bg-blue-50"

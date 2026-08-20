@@ -7,7 +7,7 @@ Status: Done
 - Created a responsive sign up page matching the existing Skill+ homepage style.
 - Connected the form to `POST /auth/signup`.
 - Added email, password confirmation and backend error validation.
-- Redirects the student to log in after successful account creation.
+- Stores the returned session user and redirects immediately by role: new students go to profile setup and institutions go to their dashboard.
 
 ## 5.2 Build Log In Page
 
@@ -15,6 +15,8 @@ Status: Done
 
 - Created the log in page and connected it to `POST /auth/login`.
 - Stores the returned user information so `user_id` is included in the student profile request.
+- Uses the backend's `has_profile` value so returning students go to recommendations while students without a profile go to profile setup.
+- Keeps the local demo session active for up to 14 days and clears expired sessions before protected pages render.
 - Added invalid-login and unavailable-backend error handling.
 - Added a `Forgot password?` link and a complete reset-request page.
 - Connected the request form to `POST /auth/forgot-password`.
@@ -29,6 +31,8 @@ Status: Done
 - Converts comma-separated courses, skills and interests into JSON arrays.
 - Sends the exact request shape to `POST /student-profile`.
 - Supports the documented `/student/profile` path as a compatibility fallback.
+- Loads an existing saved profile from `GET /student/profile/{user_id}` when needed.
+- Adds an optional profile-picture picker with preview, JPG/PNG/WEBP and 5 MB validation, and multipart upload to `POST /student/{user_id}/profile-picture`.
 
 ## 5.4 Build Analysis Results Page
 
@@ -79,13 +83,13 @@ Test result:
 
 ```text
 Test Files  1 passed (1)
-Tests       19 passed (19)
+Tests       26 passed (26)
 ```
 
 Build result:
 
 ```text
-1624 modules transformed
+1626 modules transformed
 Build completed successfully
 ```
 
@@ -94,17 +98,20 @@ Build completed successfully
 Status: Done
 
 - Updated signup to send the backend-required `student` or `institution` role.
-- Added role-aware login routing: students continue to `/profile`; institutions continue to `/institution/dashboard`.
+- Added role-aware signup/login routing: new students continue to `/profile`, returning students with a profile continue to `/recommendations`, and institutions continue to `/institution/dashboard`.
 - Added student/institution route guards.
 - Added the institution dashboard with institution-profile load, missing-profile, create, edit, loading, error and retry states.
+- Added institution-logo preview, validation, multipart upload and display through `POST /institution/{user_id}/logo`.
 - Added the raw opportunity-description submission screen connected to `POST /institution/opportunities/process`.
 - Added the editable review screen using the backend's exact canonical categories, difficulty levels and majors.
 - Connected reviewed publishing to `POST /institution/opportunities`; AI drafts are never published automatically.
 - Added explicit `Generated offline` messaging for the editable extraction fallback.
 - Added the student roadmap connected to cached `GET` and generate/regenerate `POST /student/{user_id}/roadmap`.
 - Added roadmap loading, empty, error, retry, AI-source, fallback-source and cached-result states.
+- Added an animated roadmap-generation sequence and staggered result reveals with reduced-motion accessibility.
 - Removed unsupported homepage statistics and claims, and reserved AI wording for extraction and roadmap generation.
-- Expanded automated coverage from 11 to 19 tests without regressing earlier Member 5 flows.
+- Removed non-functional footer links and connected the visible support address to `mailto:skillplus.teamm@gmail.com`.
+- Expanded automated coverage from 19 to 26 tests without regressing earlier Member 5 flows.
 
 ## Integration Status
 

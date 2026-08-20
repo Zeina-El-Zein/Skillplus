@@ -33,9 +33,9 @@ export function saveUser(user: User) {
   }
   localStorage.setItem(USER_KEY, JSON.stringify(user));
   localStorage.setItem(
-  SESSION_EXPIRY_KEY,
-  String(Date.now() + SESSION_DURATION_MS)
-);
+    SESSION_EXPIRY_KEY,
+    String(Date.now() + SESSION_DURATION_MS),
+  );
 }
 
 export function getUser() {
@@ -75,6 +75,11 @@ export function getUser() {
 
 export function saveProfile(profile: StudentProfile) {
   localStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
+
+  const user = readValue<User>(USER_KEY);
+  if (user?.role === "student" && !user.has_profile) {
+    localStorage.setItem(USER_KEY, JSON.stringify({ ...user, has_profile: true }));
+  }
 }
 
 export function getProfile() {

@@ -179,3 +179,57 @@
     line-height: 1.5;
   }
 }
+
+@keyframes roadmap-progress-line {
+  0% {
+    transform: scaleX(0);
+  }
+  55%,
+  100% {
+    transform: scaleX(1);
+  }
+}
+
+@keyframes roadmap-progress-node {
+  0%,
+  100% {
+    transform: translateY(0) scale(1);
+    box-shadow: 0 4px 12px rgba(30, 58, 138, 0.18);
+  }
+  50% {
+    transform: translateY(-5px) scale(1.06);
+    box-shadow: 0 10px 24px rgba(30, 58, 138, 0.28);
+  }
+}
+
+@keyframes roadmap-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.roadmap-progress-line {
+  animation: roadmap-progress-line 2.2s ease-in-out infinite;
+  transform-origin: left;
+}
+
+.roadmap-progress-node {
+  animation: roadmap-progress-node 1.4s ease-in-out infinite;
+}
+
+.roadmap-reveal {
+  animation: roadmap-reveal 420ms ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .roadmap-progress-line,
+  .roadmap-progress-node,
+  .roadmap-reveal {
+    animation: none;
+  }
+}

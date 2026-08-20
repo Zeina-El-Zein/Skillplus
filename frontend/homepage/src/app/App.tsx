@@ -1,4 +1,4 @@
-import { useState, type ReactNode  } from "react";
+import { useState, type ReactNode } from "react";
 import { BrowserRouter, Navigate, Route, Routes, useNavigate } from "react-router";
 import {
   User,
@@ -16,6 +16,7 @@ import {
   Menu,
   X,
   Building2,
+  Mail,
 } from "lucide-react";
 import InstitutionDashboardPage from "./pages/InstitutionDashboardPage";
 import LoginPage from "./pages/LoginPage";
@@ -28,6 +29,7 @@ import RecommendationsPage from "./pages/RecommendationsPage";
 import RoadmapPage from "./pages/RoadmapPage";
 import ResultsPage from "./pages/ResultsPage";
 import SignupPage from "./pages/SignupPage";
+import { authenticatedHome } from "./routing";
 import { getUser } from "./storage";
 
 const NAV_LINKS = [
@@ -569,7 +571,7 @@ function OpportunityPills() {
           {OPPORTUNITY_TYPES.map((type) => (
             <span
               key={type}
-              className="text-sm font-semibold text-blue-800 bg-blue-50 border border-blue-100 rounded-full px-5 py-2 hover:bg-blue-100 transition-colors cursor-pointer"
+              className="text-sm font-semibold text-blue-800 bg-blue-50 border border-blue-100 rounded-full px-5 py-2"
               style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
             >
               {type}
@@ -663,13 +665,14 @@ function Footer() {
         >
           Built for students · Transparent matching · AI-assisted planning · © 2026 Skill+
         </p>
-        <div className="flex items-center gap-6 text-sm">
-          {["Privacy", "Terms", "Contact"].map((l) => (
-            <a key={l} href="#" className="hover:text-white transition-colors">
-              {l}
-            </a>
-          ))}
-        </div>
+        <a
+          href="mailto:skillplus.teamm@gmail.com"
+          className="inline-flex items-center gap-2 text-sm font-semibold hover:text-white transition-colors"
+          aria-label="Email Skill+ support"
+        >
+          <Mail className="h-4 w-4" />
+          skillplus.teamm@gmail.com
+        </a>
       </div>
     </footer>
   );
@@ -696,7 +699,7 @@ function LoggedInRedirect({ children }: { children: ReactNode }) {
   if (user) {
     return (
       <Navigate
-        to={user.role === "institution" ? "/institution/dashboard" : "/profile"}
+        to={authenticatedHome(user)}
         replace
       />
     );
