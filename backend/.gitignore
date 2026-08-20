@@ -9,3 +9,5 @@ SMTP_EMAIL=skillplus.teamm@gmail.com
 SMTP_APP_PASSWORD=aoykgajfhhcpwbzz
 SMTP_HOST=smtp.gmail.com
 SMTP_PORT=587
+
+

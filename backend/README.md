@@ -1355,6 +1355,12 @@ and:
 psql -U postgres -d skillplus -c "ALTER TABLE students ADD COLUMN IF NOT EXISTS profile_picture_url VARCHAR(500);"
 ```
 
+and:
+
+```bash
+psql -U postgres -d skillplus -c "ALTER TABLE institutions ADD COLUMN IF NOT EXISTS logo_url VARCHAR(500);"
+```
+
 Because:
 
 ```sql
@@ -1378,6 +1384,17 @@ The schema creates the `roadmaps` table if it does not already exist.
 ---
 
 # Running the Backend
+
+For password-reset email delivery, place these values in `backend/.env`:
+
+```dotenv
+SMTP_EMAIL=your-team-address@gmail.com
+SMTP_APP_PASSWORD=your-gmail-app-password
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+```
+
+Use a Gmail App Password, not the account's normal password, and never commit `.env`.
 
 From the `backend` directory:
 

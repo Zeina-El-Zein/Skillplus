@@ -6,10 +6,10 @@ Build and test both complete frontend journeys:
 
 ~~~text
 Student:
-Sign up -> Log in -> Fill profile -> See analysis -> View ranked recommendations -> Roadmap
+Sign up -> Fill profile -> See analysis -> View ranked recommendations -> Roadmap
 
 Institution:
-Sign up -> Log in -> Institution dashboard/profile -> Paste description -> Edit draft -> Publish
+Sign up -> Institution dashboard/profile -> Paste description -> Edit draft -> Publish
 ~~~
 
 ## Pages
@@ -18,11 +18,11 @@ Sign up -> Log in -> Institution dashboard/profile -> Paste description -> Edit 
 - `/login`: Stores the returned user and redirects by role.
 - `/forgot-password`: Requests password reset instructions using `POST /auth/forgot-password`.
 - `/reset-password?token=...`: Changes the password using `POST /auth/reset-password`.
-- `/profile`: Sends the agreed student profile JSON to `POST /student-profile`.
+- `/profile`: Loads an existing profile when needed, sends the agreed JSON to `POST /student-profile`, and optionally uploads a profile picture.
 - `/results`: Displays level, strengths, missing skills and suggested next step from `POST /student/analyze/{user_id}`.
 - `/recommendations`: Displays ranked opportunity cards from `GET /student/{user_id}/recommendations`.
 - `/roadmap`: Loads the cached roadmap with `GET /student/{user_id}/roadmap` and generates/regenerates it with `POST /student/{user_id}/roadmap`.
-- `/institution/dashboard`: Loads or creates the institution profile.
+- `/institution/dashboard`: Loads or creates the institution profile and optionally uploads its logo.
 - `/institution/opportunities/new`: Sends a pasted description to `POST /institution/opportunities/process`.
 - `/institution/opportunities/review`: Shows every extracted field as editable and publishes only the reviewed version through `POST /institution/opportunities`.
 
@@ -39,12 +39,21 @@ Signup sends the backend-required role:
 }
 ~~~
 
-Login redirects:
+Signup stores the returned user and redirects immediately. Login uses the backend `has_profile` field:
 
-- `student` → `/profile`
+- new student or student without a profile → `/profile`
+- returning student with a profile → `/recommendations`
 - `institution` → `/institution/dashboard`
 
 Student-only pages redirect institution users to the institution dashboard. Institution-only pages redirect student users to the student profile flow.
+
+The local demo session has a rolling 14-day expiry. Expired or malformed sessions are cleared before protected content is shown.
+
+## Image Uploads
+
+Student profile pictures use `POST /student/{user_id}/profile-picture`; institution logos use `POST /institution/{user_id}/logo`. Both requests use multipart form data with the field name `file`.
+
+The shared picker accepts JPG, PNG and WEBP images up to 5 MB, previews a valid selection, never sets a manual multipart `Content-Type` boundary, and resolves the backend's relative `/uploads/...` response against `VITE_API_URL`.
 
 ## Institution Opportunity Flow
 
@@ -62,11 +71,13 @@ The roadmap page first requests the cached roadmap. A `404` becomes a clear empt
 
 The page displays the summary, ordered milestones, skills to learn, suggested timeframes, recommended next steps, cached generation time, and the honest source label: `AI-assisted roadmap` or `Generated offline`.
 
-Loading, missing, backend-error, retry and fallback states are all implemented.
+Loading, missing, backend-error, retry and fallback states are all implemented. Generation uses an animated profile-to-plan sequence, and saved results reveal progressively. All added motion is disabled when the operating system requests reduced motion.
 
 ## Honest Homepage Claims
 
 Unsupported claims such as `2,400+ students matched`, `95% fit accuracy`, and matching against `thousands` of opportunities were removed. The homepage now distinguishes transparent rule-based analysis/scoring from the two real AI-assisted features: opportunity extraction and roadmap generation.
+
+The non-functional Privacy and Terms placeholders were removed. The contact footer now opens a real message to `skillplus.teamm@gmail.com`.
 
 ## Design Feedback Update
 

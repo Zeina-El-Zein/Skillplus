@@ -5,6 +5,8 @@ import { ApiError, signup } from "../api";
 import FlowLayout from "../components/FlowLayout";
 import { Field, SelectInput, TextInput } from "../components/FormField";
 import PageCard from "../components/PageCard";
+import { authenticatedHome } from "../routing";
+import { saveUser } from "../storage";
 import type { UserRole } from "../types";
 
 export default function SignupPage() {
@@ -48,13 +50,18 @@ export default function SignupPage() {
 
     setLoading(true);
     try {
-      await signup(trimmedName, trimmedEmail, password, role);
-      navigate("/login", { state: { email: trimmedEmail, accountCreated: true } });
+      const response = await signup(trimmedName, trimmedEmail, password, role);
+      const sessionUser = {
+        ...response.user,
+        has_profile: response.has_profile,
+      };
+      saveUser(sessionUser);
+      navigate(authenticatedHome(sessionUser), { replace: true });
     } catch (requestError) {
       const isDuplicate =
         requestError instanceof ApiError &&
         requestError.status === 400 &&
-        /email already registered/i.test(requestError.message);
+        /email already registered|account already exists/i.test(requestError.message);
 
       setDuplicateEmail(isDuplicate);
       setError(
