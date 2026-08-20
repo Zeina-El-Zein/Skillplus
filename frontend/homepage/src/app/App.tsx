@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type ReactNode  } from "react";
 import { BrowserRouter, Navigate, Route, Routes, useNavigate } from "react-router";
 import {
   User,
@@ -28,6 +28,7 @@ import RecommendationsPage from "./pages/RecommendationsPage";
 import RoadmapPage from "./pages/RoadmapPage";
 import ResultsPage from "./pages/ResultsPage";
 import SignupPage from "./pages/SignupPage";
+import { getUser } from "./storage";
 
 const NAV_LINKS = [
   { label: "Home", href: "#home" },
@@ -689,13 +690,51 @@ function HomePage() {
   );
 }
 
+function LoggedInRedirect({ children }: { children: ReactNode }) {
+  const user = getUser();
+
+  if (user) {
+    return (
+      <Navigate
+        to={user.role === "institution" ? "/institution/dashboard" : "/profile"}
+        replace
+      />
+    );
+  }
+
+  return children;
+}
+
 export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<HomePage />} />
-        <Route path="/signup" element={<SignupPage />} />
-        <Route path="/login" element={<LoginPage />} />
+        <Route
+          path="/"
+          element={
+            <LoggedInRedirect>
+              <HomePage />
+            </LoggedInRedirect>
+          }
+        />
+
+        <Route
+          path="/signup"
+          element={
+            <LoggedInRedirect>
+              <SignupPage />
+            </LoggedInRedirect>
+          }
+        />
+
+        <Route
+          path="/login"
+          element={
+            <LoggedInRedirect>
+              <LoginPage />
+            </LoggedInRedirect>
+          }
+        />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route path="/institution/dashboard" element={<InstitutionDashboardPage />} />
