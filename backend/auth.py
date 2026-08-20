@@ -123,7 +123,8 @@ def signup(user: SignupRequest, db: Session = Depends(get_db)):
             "name": new_user.name,
             "email": new_user.email,
             "role": new_user.role
-        }
+        },
+        "has_profile": False if new_user.role == "student" else None
     }
 
 
@@ -146,6 +147,21 @@ def login(user: LoginRequest, db: Session = Depends(get_db)):
             detail="Invalid email or password"
         )
 
+    has_profile = None
+
+    if existing_user.role == "student":
+        existing_profile = db.execute(
+            text("""
+                SELECT 1
+                FROM students
+                WHERE user_id = :user_id
+                LIMIT 1
+            """),
+            {"user_id": existing_user.id}
+        ).fetchone()
+
+        has_profile = existing_profile is not None
+
     return {
         "message": "Login successful",
         "user": {
@@ -153,7 +169,8 @@ def login(user: LoginRequest, db: Session = Depends(get_db)):
             "name": existing_user.name,
             "email": existing_user.email,
             "role": existing_user.role
-        }
+        },
+        "has_profile": has_profile
     }
 
 @router.post("/forgot-password")
