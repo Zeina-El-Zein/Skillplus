@@ -95,3 +95,18 @@ class OpportunitySubmissionRequest(BaseModel):
     cv_benefit: str | None = None
     link: str | None = None
     deadline: str | None = None
+
+class TaskCreateRequest(BaseModel):
+    title: str
+    description: str | None = None
+    priority: Literal["high", "medium", "low"] = "medium"
+    opportunity_id: int | None = None
+    roadmap_step_id: int | None = None
+    source: Literal["opportunity", "roadmap"]
+
+class TaskStatusUpdateRequest(BaseModel):
+    status: Literal["todo", "in_progress", "done"]
+
+
+class TaskPriorityUpdateRequest(BaseModel):
+    priority: Literal["high", "medium", "low"]

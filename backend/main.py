@@ -22,7 +22,10 @@ from schemas import (
     StudentProfile,
     InstitutionProfile,
     OpportunityProcessRequest,
-    OpportunitySubmissionRequest
+    OpportunitySubmissionRequest,
+    TaskCreateRequest,
+    TaskStatusUpdateRequest,
+    TaskPriorityUpdateRequest
 )
 from classification import analyze_profile
 from scoring import score_opportunity
@@ -478,6 +481,504 @@ def analyze_student(
             detail="Could not analyze student profile."
         )
 
+# ============================================================
+# STUDENT TASKS
+# ============================================================
+
+@app.post(
+    "/student/{user_id}/tasks",
+    status_code=status.HTTP_201_CREATED
+)
+def create_student_task(
+    user_id: int,
+    task: TaskCreateRequest,
+    db: Session = Depends(get_db)
+):
+    try:
+        student = db.execute(
+            text("""
+                SELECT id
+                FROM students
+                WHERE user_id = :user_id
+            """),
+            {"user_id": user_id}
+        ).mappings().fetchone()
+
+        if student is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Student profile not found."
+            )
+
+        student_id = student["id"]
+
+        if task.source == "opportunity":
+            if task.opportunity_id is None:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=(
+                        "opportunity_id is required "
+                        "for opportunity tasks."
+                    )
+                )
+
+            opportunity = db.execute(
+                text("""
+                    SELECT id
+                    FROM opportunities
+                    WHERE id = :opportunity_id
+                """),
+                {"opportunity_id": task.opportunity_id}
+            ).fetchone()
+
+            if opportunity is None:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Opportunity not found."
+                )
+
+            existing_task = db.execute(
+                text("""
+                    SELECT id
+                    FROM student_tasks
+                    WHERE student_id = :student_id
+                      AND opportunity_id = :opportunity_id
+                      AND source = 'opportunity'
+                """),
+                {
+                    "student_id": student_id,
+                    "opportunity_id": task.opportunity_id
+                }
+            ).fetchone()
+
+            if existing_task is not None:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail=(
+                        "This opportunity is already "
+                        "in your To-Do list."
+                    )
+                )
+
+        created_task = db.execute(
+            text("""
+                INSERT INTO student_tasks (
+                    student_id,
+                    title,
+                    description,
+                    status,
+                    priority,
+                    opportunity_id,
+                    roadmap_step_id,
+                    source
+                )
+                VALUES (
+                    :student_id,
+                    :title,
+                    :description,
+                    'todo',
+                    :priority,
+                    :opportunity_id,
+                    :roadmap_step_id,
+                    :source
+                )
+                RETURNING
+                    id,
+                    student_id,
+                    title,
+                    description,
+                    status,
+                    priority,
+                    opportunity_id,
+                    roadmap_step_id,
+                    source,
+                    created_at,
+                    updated_at,
+                    completed_at
+            """),
+            {
+                "student_id": student_id,
+                "title": task.title,
+                "description": task.description,
+                "priority": task.priority,
+                "opportunity_id": task.opportunity_id,
+                "roadmap_step_id": task.roadmap_step_id,
+                "source": task.source
+            }
+        ).mappings().fetchone()
+
+        db.commit()
+
+        return {
+            "message": "Task added to To-Do successfully.",
+            "task": dict(created_task)
+        }
+
+    except HTTPException:
+        db.rollback()
+        raise
+
+    except Exception as e:
+        db.rollback()
+        print("CREATE TASK ERROR:", repr(e))
+
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Could not create task."
+        )
+
+
+@app.get("/student/{user_id}/tasks")
+def get_student_tasks(
+    user_id: int,
+    task_status: str | None = None,
+    db: Session = Depends(get_db)
+):
+    try:
+        student = db.execute(
+            text("""
+                SELECT id
+                FROM students
+                WHERE user_id = :user_id
+            """),
+            {"user_id": user_id}
+        ).mappings().fetchone()
+
+        if student is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Student profile not found."
+            )
+
+        query = """
+            SELECT
+                id,
+                student_id,
+                title,
+                description,
+                status,
+                priority,
+                opportunity_id,
+                roadmap_step_id,
+                source,
+                created_at,
+                updated_at,
+                completed_at
+            FROM student_tasks
+            WHERE student_id = :student_id
+        """
+
+        parameters = {
+            "student_id": student["id"]
+        }
+
+        if task_status is not None:
+            if task_status not in {
+                "todo",
+                "in_progress",
+                "done"
+            }:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Invalid task status."
+                )
+
+            query += " AND status = :task_status"
+            parameters["task_status"] = task_status
+
+        query += " ORDER BY created_at DESC"
+
+        tasks = db.execute(
+            text(query),
+            parameters
+        ).mappings().all()
+
+        return {
+            "user_id": user_id,
+            "tasks": [
+                dict(task)
+                for task in tasks
+            ]
+        }
+
+    except HTTPException:
+        raise
+
+    except Exception as e:
+        print("GET TASKS ERROR:", repr(e))
+
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Could not retrieve student tasks."
+        )
+
+#this endpoint  allows updating the task status from todo -> in progress -> done 
+@app.patch("/student/{user_id}/tasks/{task_id}/status")
+def update_task_status(
+    user_id: int,
+    task_id: int,
+    update: TaskStatusUpdateRequest,
+    db: Session = Depends(get_db)
+):
+    try:
+        student = db.execute(
+            text("""
+                SELECT id
+                FROM students
+                WHERE user_id = :user_id
+            """),
+            {"user_id": user_id}
+        ).mappings().fetchone()
+
+        if student is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Student profile not found."
+            )
+
+        existing_task = db.execute(
+            text("""
+                SELECT id
+                FROM student_tasks
+                WHERE id = :task_id
+                  AND student_id = :student_id
+            """),
+            {
+                "task_id": task_id,
+                "student_id": student["id"]
+            }
+        ).fetchone()
+
+        if existing_task is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Task not found."
+            )
+
+        completed_at = (
+            "CURRENT_TIMESTAMP"
+            if update.status == "done"
+            else "NULL"
+        )
+
+        updated_task = db.execute(
+            text(f"""
+                UPDATE student_tasks
+                SET
+                    status = :status,
+                    updated_at = CURRENT_TIMESTAMP,
+                    completed_at = {completed_at}
+                WHERE id = :task_id
+                  AND student_id = :student_id
+                RETURNING
+                    id,
+                    student_id,
+                    title,
+                    description,
+                    status,
+                    priority,
+                    opportunity_id,
+                    roadmap_step_id,
+                    source,
+                    created_at,
+                    updated_at,
+                    completed_at
+            """),
+            {
+                "status": update.status,
+                "task_id": task_id,
+                "student_id": student["id"]
+            }
+        ).mappings().fetchone()
+
+        db.commit()
+
+        return {
+            "message": "Task status updated successfully.",
+            "task": dict(updated_task)
+        }
+
+    except HTTPException:
+        db.rollback()
+        raise
+
+    except Exception as e:
+        db.rollback()
+        print("UPDATE TASK STATUS ERROR:", repr(e))
+
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Could not update task status."
+        )
+
+# 1. Find the student using user_id
+# 2. Make sure the task belongs to that student
+# 3. UPDATE the priority
+# 4. Commit
+# 5. Return the updated task
+@app.patch("/student/{user_id}/tasks/{task_id}/priority")
+def update_task_priority(
+    user_id: int,
+    task_id: int,
+    update: TaskPriorityUpdateRequest,
+    db: Session = Depends(get_db)
+):
+    try:
+        student = db.execute(
+            text("""
+                SELECT id
+                FROM students
+                WHERE user_id = :user_id
+            """),
+            {"user_id": user_id}
+        ).mappings().fetchone()
+
+        if student is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Student profile not found."
+            )
+
+        existing_task = db.execute(
+            text("""
+                SELECT id
+                FROM student_tasks
+                WHERE id = :task_id
+                  AND student_id = :student_id
+            """),
+            {
+                "task_id": task_id,
+                "student_id": student["id"]
+            }
+        ).fetchone()
+
+        if existing_task is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Task not found."
+            )
+
+        updated_task = db.execute(
+            text("""
+                UPDATE student_tasks
+                SET
+                    priority = :priority,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = :task_id
+                  AND student_id = :student_id
+                RETURNING
+                    id,
+                    student_id,
+                    title,
+                    description,
+                    status,
+                    priority,
+                    opportunity_id,
+                    roadmap_step_id,
+                    source,
+                    created_at,
+                    updated_at,
+                    completed_at
+            """),
+            {
+                "priority": update.priority,
+                "task_id": task_id,
+                "student_id": student["id"]
+            }
+        ).mappings().fetchone()
+
+        db.commit()
+
+        return {
+            "message": "Task priority updated successfully.",
+            "task": dict(updated_task)
+        }
+
+    except HTTPException:
+        db.rollback()
+        raise
+
+    except Exception as e:
+        db.rollback()
+        print("UPDATE TASK PRIORITY ERROR:", repr(e))
+
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Could not update task priority."
+        )
+
+
+@app.delete("/student/{user_id}/tasks/{task_id}")
+def delete_student_task(
+    user_id: int,
+    task_id: int,
+    db: Session = Depends(get_db)
+):
+    try:
+        student = db.execute(
+            text("""
+                SELECT id
+                FROM students
+                WHERE user_id = :user_id
+            """),
+            {"user_id": user_id}
+        ).mappings().fetchone()
+
+        if student is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Student profile not found."
+            )
+
+        existing_task = db.execute(
+            text("""
+                SELECT id
+                FROM student_tasks
+                WHERE id = :task_id
+                  AND student_id = :student_id
+            """),
+            {
+                "task_id": task_id,
+                "student_id": student["id"]
+            }
+        ).fetchone()
+
+        if existing_task is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Task not found."
+            )
+
+        db.execute(
+            text("""
+                DELETE FROM student_tasks
+                WHERE id = :task_id
+                  AND student_id = :student_id
+            """),
+            {
+                "task_id": task_id,
+                "student_id": student["id"]
+            }
+        )
+
+        db.commit()
+
+        return {
+            "message": "Task removed successfully."
+        }
+
+    except HTTPException:
+        db.rollback()
+        raise
+
+    except Exception as e:
+        db.rollback()
+        print("DELETE TASK ERROR:", repr(e))
+
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Could not remove task."
+        )
 
 # ============================================================
 # INSTITUTION PROFILE
