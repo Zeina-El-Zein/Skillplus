@@ -148,3 +148,27 @@ export type RoadmapResponse = {
   generated_at?: string;
   roadmap: RoadmapContent;
 };
+
+export type StudentTaskStatus = "todo" | "in_progress" | "done";
+
+export type StudentTaskPriority = "high" | "medium" | "low";
+
+export type StudentTaskSource = "opportunity" | "roadmap";
+
+export type StudentTask = {
+  id: number;
+  title: string;
+  description: string | null;
+  status: StudentTaskStatus;
+  priority: StudentTaskPriority;
+  opportunity_id: number | null;
+  roadmap_step_id: number | null;
+  source: StudentTaskSource;
+  created_at: string;
+  updated_at: string;
+  completed_at: string | null;
+};
+
+export type StudentTasksResponse = {
+  tasks: StudentTask[];
+};
