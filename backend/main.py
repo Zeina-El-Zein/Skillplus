@@ -569,7 +569,6 @@ def create_student_task(
                     status,
                     priority,
                     opportunity_id,
-                    roadmap_step_id,
                     source
                 )
                 VALUES (
@@ -579,7 +578,6 @@ def create_student_task(
                     'todo',
                     :priority,
                     :opportunity_id,
-                    :roadmap_step_id,
                     :source
                 )
                 RETURNING
@@ -590,7 +588,6 @@ def create_student_task(
                     status,
                     priority,
                     opportunity_id,
-                    roadmap_step_id,
                     source,
                     created_at,
                     updated_at,
@@ -602,7 +599,6 @@ def create_student_task(
                 "description": task.description,
                 "priority": task.priority,
                 "opportunity_id": task.opportunity_id,
-                "roadmap_step_id": task.roadmap_step_id,
                 "source": task.source
             }
         ).mappings().fetchone()
@@ -659,7 +655,6 @@ def get_student_tasks(
                 status,
                 priority,
                 opportunity_id,
-                roadmap_step_id,
                 source,
                 created_at,
                 updated_at,
@@ -778,7 +773,6 @@ def update_task_status(
                     status,
                     priority,
                     opportunity_id,
-                    roadmap_step_id,
                     source,
                     created_at,
                     updated_at,
@@ -874,7 +868,6 @@ def update_task_priority(
                     status,
                     priority,
                     opportunity_id,
-                    roadmap_step_id,
                     source,
                     created_at,
                     updated_at,

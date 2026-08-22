@@ -101,7 +101,6 @@ class TaskCreateRequest(BaseModel):
     description: str | None = None
     priority: Literal["high", "medium", "low"] = "medium"
     opportunity_id: int | None = None
-    roadmap_step_id: int | None = None
     source: Literal["opportunity", "roadmap"]
 
 class TaskStatusUpdateRequest(BaseModel):
