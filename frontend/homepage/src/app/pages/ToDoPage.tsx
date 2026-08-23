@@ -3,6 +3,7 @@ import { CheckCircle2, Circle, Clock3, Loader2 } from "lucide-react";
 import { Navigate } from "react-router";
 
 import {
+  deleteStudentTask,
   getStudentTasks,
   updateStudentTaskPriority,
   updateStudentTaskStatus,
@@ -22,7 +23,7 @@ export default function ToDoPage() {
   const [updatingTaskId, setUpdatingTaskId] = useState<number | null>(null);
   const [updatingPriorityTaskId, setUpdatingPriorityTaskId] =
     useState<number | null>(null);
-
+  const [deletingTaskId, setDeletingTaskId] = useState<number | null>(null);
   useEffect(() => {
     if (!userId) return;
 
@@ -117,6 +118,28 @@ export default function ToDoPage() {
     setUpdatingPriorityTaskId(null);
   }
 }
+    async function handleDeleteTask(taskId: number) {
+  if (!userId) return;
+
+  setDeletingTaskId(taskId);
+  setError("");
+
+  try {
+    await deleteStudentTask(userId, taskId);
+
+    setTasks((current) =>
+      current.filter((task) => task.id !== taskId),
+    );
+  } catch (requestError) {
+    setError(
+      requestError instanceof Error
+        ? requestError.message
+        : "Could not delete the task.",
+    );
+  } finally {
+    setDeletingTaskId(null);
+  }
+}
   if (!user) {
     return <Navigate to="/login" replace />;
   }
@@ -163,6 +186,8 @@ export default function ToDoPage() {
               updatingTaskId={updatingTaskId}
               onPriorityChange={handlePriorityChange}
               updatingPriorityTaskId={updatingPriorityTaskId}
+              onDeleteTask={handleDeleteTask}
+              deletingTaskId={deletingTaskId}
             />
 
             <TaskSection
@@ -174,6 +199,8 @@ export default function ToDoPage() {
               updatingTaskId={updatingTaskId}
               onPriorityChange={handlePriorityChange}
               updatingPriorityTaskId={updatingPriorityTaskId}
+              onDeleteTask={handleDeleteTask}
+              deletingTaskId={deletingTaskId}
             />
 
             <TaskSection
@@ -185,6 +212,8 @@ export default function ToDoPage() {
               updatingTaskId={updatingTaskId}
               onPriorityChange={handlePriorityChange}
               updatingPriorityTaskId={updatingPriorityTaskId}
+              onDeleteTask={handleDeleteTask}
+              deletingTaskId={deletingTaskId}
             />
           </div>
         )}
@@ -202,11 +231,15 @@ function TaskSection({
   updatingTaskId,
   onPriorityChange,
   updatingPriorityTaskId,
+  onDeleteTask,
+  deletingTaskId,
 }: {
   title: string;
   icon: ReactNode;
   tasks: StudentTask[];
   emptyMessage: string;
+  onDeleteTask: (taskId: number) => void;
+  deletingTaskId: number | null;
   onStatusChange: (
     taskId: number,
     status: "todo" | "in_progress" | "done",
@@ -319,6 +352,14 @@ function TaskSection({
                     Move Back
                     </button>
                 )}
+                <button
+                    type="button"
+                    disabled={deletingTaskId === task.id}
+                    onClick={() => onDeleteTask(task.id)}
+                    className="text-sm font-semibold text-red-600 hover:bg-red-50 border border-red-200 px-4 py-2 rounded-full disabled:opacity-50"
+                    >
+                    {deletingTaskId === task.id ? "Deleting..." : "Delete"}
+                    </button>
                 </div>
             </article>
           ))}
