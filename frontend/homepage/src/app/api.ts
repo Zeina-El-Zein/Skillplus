@@ -16,6 +16,7 @@ import type {
   StudentTaskCreate,
   StudentTaskCreateResponse,
   StudentTasksResponse,
+  TaskPriority,
   TaskStatus,
 } from "./types";
 
@@ -219,3 +220,42 @@ export function getStudentTasks(
   );
 }
 
+export function updateStudentTaskStatus(
+  userId: number,
+  taskId: number,
+  status: TaskStatus,
+) {
+  return request<StudentTaskCreateResponse>(
+    `/student/${userId}/tasks/${taskId}/status`,
+    {
+      method: "PATCH",
+      body: JSON.stringify({ status }),
+    },
+  );
+}
+
+export function updateStudentTaskPriority(
+  userId: number,
+  taskId: number,
+  priority: TaskPriority,
+) {
+  return request<StudentTaskCreateResponse>(
+    `/student/${userId}/tasks/${taskId}/priority`,
+    {
+      method: "PATCH",
+      body: JSON.stringify({ priority }),
+    },
+  );
+}
+
+export function deleteStudentTask(
+  userId: number,
+  taskId: number,
+) {
+  return request<{ message: string }>(
+    `/student/${userId}/tasks/${taskId}`,
+    {
+      method: "DELETE",
+    },
+  );
+}

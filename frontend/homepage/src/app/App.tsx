@@ -18,6 +18,7 @@ import {
   Building2,
   Mail,
 } from "lucide-react";
+import ToDoPage from "./pages/ToDoPage";
 import InstitutionDashboardPage from "./pages/InstitutionDashboardPage";
 import LoginPage from "./pages/LoginPage";
 import ForgotPasswordPage from "./pages/ForgotPasswordPage";
@@ -747,6 +748,7 @@ export default function App() {
         <Route path="/results" element={<ResultsPage />} />
         <Route path="/recommendations" element={<RecommendationsPage />} />
         <Route path="/roadmap" element={<RoadmapPage />} />
+        <Route path="/todo" element={<ToDoPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
