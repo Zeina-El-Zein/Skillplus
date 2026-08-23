@@ -13,6 +13,10 @@ import type {
   StudentProfile,
   StudentProfileResponse,
   UserRole,
+  StudentTaskCreate,
+  StudentTaskCreateResponse,
+  StudentTasksResponse,
+  TaskStatus,
 } from "./types";
 
 const API_URL = (import.meta.env.VITE_API_URL || "http://localhost:8000").replace(/\/$/, "");
@@ -188,3 +192,30 @@ export function generateStudentRoadmap(userId: number) {
     method: "POST",
   });
 }
+
+export function createStudentTask(
+  userId: number,
+  task: StudentTaskCreate,
+) {
+  return request<StudentTaskCreateResponse>(
+    `/student/${userId}/tasks`,
+    {
+      method: "POST",
+      body: JSON.stringify(task),
+    },
+  );
+}
+
+export function getStudentTasks(
+  userId: number,
+  taskStatus?: TaskStatus,
+) {
+  const query = taskStatus
+    ? `?task_status=${taskStatus}`
+    : "";
+
+  return request<StudentTasksResponse>(
+    `/student/${userId}/tasks${query}`,
+  );
+}
+

@@ -11,7 +11,12 @@ import {
   Sparkles,
 } from "lucide-react";
 import { Link, Navigate } from "react-router";
-import { getStudentRecommendations } from "../api";
+import {
+  ApiError,
+  createStudentTask,
+  getStudentRecommendations,
+  getStudentTasks,
+} from "../api";
 import FlowLayout from "../components/FlowLayout";
 import PageCard from "../components/PageCard";
 import { getUser } from "../storage";
@@ -49,35 +54,119 @@ export default function RecommendationsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [requestNumber, setRequestNumber] = useState(0);
+  const [addedOpportunityIds, setAddedOpportunityIds] = useState<Set<number>>(
+  new Set(),
+);
 
-  useEffect(() => {
-    if (!userId) return;
+const [addingOpportunityIds, setAddingOpportunityIds] = useState<Set<number>>(
+  new Set(),
+);
 
-    let active = true;
-    setLoading(true);
-    setError("");
+const [taskError, setTaskError] = useState("");
 
-    getStudentRecommendations(userId)
-      .then((response) => {
-        if (active) setRecommendations(response.recommendations || []);
-      })
-      .catch((requestError) => {
-        if (!active) return;
-        setRecommendations([]);
-        setError(
-          requestError instanceof Error
-            ? requestError.message
-            : "Could not load recommendations.",
-        );
-      })
-      .finally(() => {
-        if (active) setLoading(false);
+useEffect(() => {
+  if (!userId) return;
+
+  let active = true;
+
+  setLoading(true);
+  setError("");
+
+  Promise.all([
+    getStudentRecommendations(userId),
+    getStudentTasks(userId),
+  ])
+    .then(([recommendationResponse, taskResponse]) => {
+      if (!active) return;
+
+      setRecommendations(
+        recommendationResponse.recommendations || [],
+      );
+
+      const opportunityIds = taskResponse.tasks
+        .filter(
+          (task) =>
+            task.source === "opportunity" &&
+            task.opportunity_id !== null,
+        )
+        .map((task) => task.opportunity_id as number);
+
+      setAddedOpportunityIds(new Set(opportunityIds));
+    })
+    .catch((requestError) => {
+      if (!active) return;
+
+      setRecommendations([]);
+      setError(
+        requestError instanceof Error
+          ? requestError.message
+          : "Could not load recommendations.",
+      );
+    })
+    .finally(() => {
+      if (active) setLoading(false);
+    });
+
+  return () => {
+    active = false;
+  };
+}, [requestNumber, userId]);
+
+async function handleAddToTodo(
+  opportunity: OpportunityRecommendation,
+) {
+  if (!userId || addedOpportunityIds.has(opportunity.id)) {
+    return;
+  }
+
+  setTaskError("");
+
+  setAddingOpportunityIds((current) => {
+    const next = new Set(current);
+    next.add(opportunity.id);
+    return next;
+  });
+
+  try {
+    await createStudentTask(userId, {
+      title: opportunity.title,
+      priority: "medium",
+      opportunity_id: opportunity.id,
+      source: "opportunity",
+    });
+
+    setAddedOpportunityIds((current) => {
+      const next = new Set(current);
+      next.add(opportunity.id);
+      return next;
+    });
+  } catch (requestError) {
+    if (
+      requestError instanceof ApiError &&
+      requestError.status === 409
+    ) {
+      setAddedOpportunityIds((current) => {
+        const next = new Set(current);
+        next.add(opportunity.id);
+        return next;
       });
 
-    return () => {
-      active = false;
-    };
-  }, [requestNumber, userId]);
+      return;
+    }
+
+    setTaskError(
+      requestError instanceof Error
+        ? requestError.message
+        : "Could not add this opportunity to your To-Do list.",
+    );
+  } finally {
+    setAddingOpportunityIds((current) => {
+      const next = new Set(current);
+      next.delete(opportunity.id);
+      return next;
+    });
+  }
+}
 
   if (!user) return <Navigate to="/login" replace />;
   if (user.role === "institution") {
@@ -146,12 +235,22 @@ export default function RecommendationsPage() {
                 {recommendations.length} active {recommendations.length === 1 ? "opportunity" : "opportunities"}, ranked by match score.
               </p>
             </div>
-
+            {taskError && (
+          <div
+            role="alert"
+            className="rounded-xl bg-red-50 border border-red-100 px-4 py-3 text-sm text-red-700"
+          >
+            {taskError}
+          </div>
+        )}
             {recommendations.map((opportunity, index) => (
               <RecommendationCard
                 key={opportunity.id}
                 opportunity={opportunity}
                 rank={index + 1}
+                added={addedOpportunityIds.has(opportunity.id)}
+                adding={addingOpportunityIds.has(opportunity.id)}
+                onAdd={() => handleAddToTodo(opportunity)}
               />
             ))}
 
@@ -181,9 +280,15 @@ export default function RecommendationsPage() {
 function RecommendationCard({
   opportunity,
   rank,
+  added,
+  adding,
+  onAdd,
 }: {
   opportunity: OpportunityRecommendation;
   rank: number;
+  added: boolean;
+  adding: boolean;
+  onAdd: () => void;
 }) {
   const matchScore = Math.max(0, Math.min(100, Math.round(opportunity.match_score || 0)));
   const applyLink = safeLink(opportunity.link);
@@ -267,6 +372,33 @@ function RecommendationCard({
           <p className="text-sm text-gray-600">No strong profile matches were identified yet.</p>
         )}
       </div>
+      <button
+        type="button"
+        onClick={onAdd}
+        disabled={added || adding}
+        className={`inline-flex w-full items-center justify-center gap-2 font-semibold px-6 py-3 rounded-full transition-colors mb-3 ${
+          added
+            ? "bg-green-50 border border-green-200 text-green-700 cursor-default"
+            : "border border-blue-200 text-blue-900 hover:bg-blue-50 disabled:opacity-60"
+        }`}
+      >
+        {adding ? (
+          <>
+            <Loader2 className="w-4 h-4 animate-spin" />
+            Adding...
+          </>
+        ) : added ? (
+          <>
+            <CheckCircle2 className="w-4 h-4" />
+            Added to To-Do
+          </>
+        ) : (
+          "Add to To-Do"
+        )}
+      </button>
+
+
+      
 
       {applyLink ? (
         <a
