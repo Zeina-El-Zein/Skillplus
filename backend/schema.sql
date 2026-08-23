@@ -58,6 +58,7 @@ CREATE TABLE IF NOT EXISTS opportunities (
     suitable_major VARCHAR(100),
     suitable_year INTEGER,
     difficulty VARCHAR(50),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     required_skills TEXT[],
     skills_gained TEXT[],
     deadline DATE,
@@ -67,6 +68,7 @@ CREATE TABLE IF NOT EXISTS opportunities (
     hours_per_week INTEGER,
     institution_id INTEGER REFERENCES institutions(id),
     source VARCHAR(20) DEFAULT 'seed'
+    
 );
 
 CREATE TABLE IF NOT EXISTS roadmaps (
@@ -94,3 +96,15 @@ CREATE TABLE IF NOT EXISTS student_tasks (
     completed_at TIMESTAMP,
     CONSTRAINT unique_student_opportunity UNIQUE (student_id, opportunity_id)
 );
+
+CREATE TABLE IF NOT EXISTS opportunity_interactions (
+    id SERIAL PRIMARY KEY,
+    opportunity_id INTEGER NOT NULL REFERENCES opportunities(id) ON DELETE CASCADE,
+    student_id INTEGER NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+    interaction_type VARCHAR(20) NOT NULL
+        CHECK (interaction_type IN ('view', 'added_to_todo')),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_interactions_opportunity
+ON opportunity_interactions(opportunity_id);
