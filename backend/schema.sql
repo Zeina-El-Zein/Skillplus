@@ -76,3 +76,21 @@ CREATE TABLE IF NOT EXISTS roadmaps (
     source VARCHAR(20) NOT NULL DEFAULT 'fallback',
     generated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TABLE IF NOT EXISTS student_tasks (
+    id SERIAL PRIMARY KEY,
+    student_id INTEGER NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+    title VARCHAR(255) NOT NULL,
+    description TEXT,
+    status VARCHAR(20) NOT NULL DEFAULT 'todo'
+        CHECK (status IN ('todo', 'in_progress', 'done')),
+    priority VARCHAR(10) NOT NULL DEFAULT 'medium'
+        CHECK (priority IN ('high', 'medium', 'low')),
+    opportunity_id INTEGER REFERENCES opportunities(id) ON DELETE CASCADE,
+    source VARCHAR(20) NOT NULL
+        CHECK (source IN ('opportunity', 'roadmap')),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    completed_at TIMESTAMP,
+    CONSTRAINT unique_student_opportunity UNIQUE (student_id, opportunity_id)
+);
