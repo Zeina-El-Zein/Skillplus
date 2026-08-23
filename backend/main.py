@@ -1230,28 +1230,34 @@ def get_institution_own_opportunities(
         opportunities = db.execute(
             text("""
                 SELECT
-                    id,
-                    title,
-                    category,
-                    suitable_major,
-                    suitable_year,
-                    difficulty,
-                    required_skills,
-                    skills_gained,
-                    deadline,
-                    estimated_time,
-                    cv_benefit,
-                    link,
-                    hours_per_week,
-                    institution_id,
-                    source
-                FROM opportunities
-                WHERE institution_id = :institution_id
-                ORDER BY id
+                    o.id,
+                    o.title,
+                    o.category,
+                    o.suitable_major,
+                    o.suitable_year,
+                    o.difficulty,
+                    o.required_skills,
+                    o.skills_gained,
+                    o.deadline,
+                    o.estimated_time,
+                    o.cv_benefit,
+                    o.link,
+                    o.hours_per_week,
+                    o.institution_id,
+                    o.source,
+                    o.created_at,
+                    COUNT(DISTINCT CASE WHEN i.interaction_type = 'view'
+                            THEN i.student_id END) AS views,
+                    COUNT(DISTINCT CASE WHEN i.interaction_type = 'added_to_todo'
+                            THEN i.student_id END) AS added_to_todo
+                FROM opportunities o
+                LEFT JOIN opportunity_interactions i
+                        ON i.opportunity_id = o.id
+                WHERE o.institution_id = :institution_id
+                GROUP BY o.id
+                ORDER BY o.id
             """),
-            {
-                "institution_id": institution["id"]
-            }
+            {"institution_id": institution["id"]}
         ).mappings().all()
 
         return [
@@ -1946,39 +1952,62 @@ def get_cached_student_roadmap(
             detail="Could not retrieve roadmap."
         )
 
-@app.get("/institution/{user_id}/opportunities")
-def get_institution_opportunities(user_id: int, db: Session = Depends(get_db)):
-    """
-    Returns the logged-in institution's own opportunities with aggregated
-    engagement statistics. Institutions can only see their own data, and
-    never individual student activity.
-    """
-    require_institution(user_id, db)
 
+
+@app.post("/opportunities/{opportunity_id}/view")
+def record_opportunity_view(
+    opportunity_id: int,
+    user_id: int,
+    db: Session = Depends(get_db)
+):
+    """
+    Records that a student opened an opportunity's details.
+
+    Called by the frontend when the detail view is opened, not when the
+    opportunity merely appears in a list. Used only for aggregated
+    institution statistics.
+    """
     try:
-        rows = db.execute(
-            text("""
-                SELECT
-                    o.id, o.title, o.category, o.difficulty,
-                    o.deadline, o.created_at,
-                    COUNT(DISTINCT CASE WHEN i.interaction_type = 'view'
-                          THEN i.student_id END) AS views,
-                    COUNT(DISTINCT CASE WHEN i.interaction_type = 'added_to_todo'
-                          THEN i.student_id END) AS added_to_todo
-                FROM opportunities o
-                JOIN institutions inst ON o.institution_id = inst.id
-                LEFT JOIN opportunity_interactions i ON i.opportunity_id = o.id
-                WHERE inst.user_id = :user_id
-                GROUP BY o.id
-                ORDER BY o.created_at DESC
-            """),
+        student = db.execute(
+            text("SELECT id FROM students WHERE user_id = :user_id"),
             {"user_id": user_id}
-        ).mappings().all()
+        ).mappings().fetchone()
 
-        return [dict(row) for row in rows]
+        if student is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Student profile not found."
+            )
+
+        opportunity = db.execute(
+            text("SELECT id FROM opportunities WHERE id = :id"),
+            {"id": opportunity_id}
+        ).fetchone()
+
+        if opportunity is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Opportunity not found."
+            )
+
+        db.execute(
+            text("""
+                INSERT INTO opportunity_interactions
+                    (opportunity_id, student_id, interaction_type)
+                VALUES (:opportunity_id, :student_id, 'view')
+            """),
+            {"opportunity_id": opportunity_id, "student_id": student["id"]}
+        )
+        db.commit()
+
+        return {"message": "View recorded"}
+
+    except HTTPException:
+        raise
 
     except Exception:
+        db.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Could not retrieve institution opportunities."
+            detail="Could not record opportunity view."
         )
