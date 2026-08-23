@@ -130,7 +130,9 @@ The backend currently uses the following tables:
 - `students` — student profiles and analyzed levels;
 - `institutions` — institution profiles linked to institution users;
 - `opportunities` — seed and institution-submitted opportunities;
-- `roadmaps` — cached student roadmaps.
+- `roadmaps` — cached student roadmaps;
+- `student_tasks` — shared student to-do/progress tasks;
+- `opportunity_interactions` — opportunity views and add-to-To-Do events.
 
 ---
 
@@ -590,7 +592,43 @@ Missing institution profile:
 ```
 
 ---
+## GET `/institution/{user_id}/opportunities`
 
+Returns the institution's own opportunities together with aggregated engagement statistics.
+
+Example:
+
+```text
+GET /institution/8/opportunities
+```
+
+Example response:
+
+```json
+[
+  {
+    "id": 23,
+    "title": "Software Engineering Internship",
+    "category": "Internship",
+    "difficulty": "Intermediate",
+    "deadline": "2026-10-30",
+    "created_at": "2026-08-22T14:10:02",
+    "views": 12,
+    "added_to_todo": 4
+  }
+]
+```
+
+Notes:
+
+- `views` and `added_to_todo` count distinct students, not repeat actions;
+- only the requesting institution's own opportunities are returned;
+- individual student activity is never exposed;
+- student user → `403`;
+- unknown user → `404`;
+- an institution with no opportunities receives `[]` with `200 OK`.
+
+---
 # Canonical Shared Values
 
 The following values must stay consistent between:
@@ -1379,7 +1417,13 @@ and:
 psql -U postgres -d skillplus -c "ALTER TABLE opportunities ADD COLUMN IF NOT EXISTS source VARCHAR(20) DEFAULT 'seed';"
 ```
 
-The schema creates the `roadmaps` table if it does not already exist.
+Installations created before the task and analytics work should also run:
+
+```bash
+psql -U postgres -d skillplus -c "ALTER TABLE opportunities ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;"
+```
+
+The schema creates the `roadmaps`, `student_tasks` and `opportunity_interactions` tables if they do not already exist.
 
 ---
 
@@ -1477,6 +1521,7 @@ POST /institution-profile
 GET /institution/{user_id}
 POST /institution/opportunities/process
 POST /institution/opportunities
+GET /institution/{user_id}/opportunities
 ```
 
 Opportunities:
