@@ -1,6 +1,84 @@
+import { useEffect, useState } from "react";
+import { Navigate } from "react-router";
+import { getStudentTasks } from "../api";
 import FlowLayout from "../components/FlowLayout";
+import { getUser } from "../storage";
+import { getCurrentTasks } from "../taskUtils";
+import type { StudentTask } from "../types";
+
+function formatPriority(priority: StudentTask["priority"]) {
+  return priority.charAt(0).toUpperCase() + priority.slice(1);
+}
+
+function formatStatus(status: StudentTask["status"]) {
+  if (status === "in_progress") {
+    return "In Progress";
+  }
+
+  if (status === "todo") {
+    return "To Do";
+  }
+
+  return "Done";
+}
 
 export default function StudentDashboardPage() {
+  const user = getUser();
+  const userId = user?.id;
+  const userRole = user?.role;
+
+  const [currentTasks, setCurrentTasks] = useState<StudentTask[]>([]);
+  const [tasksLoading, setTasksLoading] = useState(true);
+  const [tasksError, setTasksError] = useState("");
+
+  useEffect(() => {
+    if (!userId || userRole !== "student") {
+      setTasksLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+
+    async function loadTasks(activeUserId: number) {
+      setTasksLoading(true);
+      setTasksError("");
+
+      try {
+        const response = await getStudentTasks(activeUserId);
+
+        if (!cancelled) {
+          setCurrentTasks(getCurrentTasks(response.tasks));
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setTasksError(
+            error instanceof Error
+              ? error.message
+              : "Could not load your current tasks.",
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          setTasksLoading(false);
+        }
+      }
+    }
+
+    loadTasks(userId);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [userId, userRole]);
+
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (user.role === "institution") {
+    return <Navigate to="/institution/dashboard" replace />;
+  }
+
   return (
     <FlowLayout showSteps={false} wide>
       <div className="space-y-8">
@@ -124,27 +202,80 @@ export default function StudentDashboardPage() {
             </p>
           </div>
 
-          <div className="rounded-xl border border-gray-100 bg-gray-50 p-5">
-            <div className="flex flex-col gap-3">
-              <div className="flex items-center justify-between gap-4">
-                <h3 className="font-semibold text-gray-900">
-                  Current task
-                </h3>
-
-                <span className="rounded-full bg-blue-50 border border-blue-100 px-3 py-1 text-xs font-semibold text-blue-800">
-                  In Progress
-                </span>
-              </div>
-
-              <p className="text-sm text-gray-600">
-                Your active task will appear here.
-              </p>
-
-              <p className="text-xs font-medium text-gray-500">
-                Priority: High
+          {tasksLoading && (
+            <div className="rounded-xl border border-gray-100 bg-gray-50 p-5">
+              <p className="text-sm text-gray-500">
+                Loading your current tasks...
               </p>
             </div>
-          </div>
+          )}
+
+          {!tasksLoading && tasksError && (
+            <div className="rounded-xl border border-red-100 bg-red-50 p-5">
+              <p className="text-sm text-red-700">
+                {tasksError}
+              </p>
+            </div>
+          )}
+
+          {!tasksLoading &&
+            !tasksError &&
+            currentTasks.length === 0 && (
+              <div className="rounded-xl border border-gray-100 bg-gray-50 p-5">
+                <h3 className="font-semibold text-gray-900">
+                  No current tasks yet
+                </h3>
+
+                <p className="mt-2 text-sm text-gray-600">
+                  You don’t have any active tasks right now. Explore your
+                  recommendations or roadmap to find your next step.
+                </p>
+              </div>
+            )}
+
+          {!tasksLoading &&
+            !tasksError &&
+            currentTasks.length > 0 && (
+              <div className="flex flex-col gap-4">
+                {currentTasks.map((task) => (
+                  <div
+                    key={task.id}
+                    className="rounded-xl border border-gray-100 bg-gray-50 p-5"
+                  >
+                    <div className="flex flex-col gap-3">
+                      <div className="flex items-start justify-between gap-4">
+                        <h3 className="font-semibold text-gray-900">
+                          {task.title}
+                        </h3>
+
+                        <span className="shrink-0 rounded-full bg-blue-50 border border-blue-100 px-3 py-1 text-xs font-semibold text-blue-800">
+                          {formatStatus(task.status)}
+                        </span>
+                      </div>
+
+                      {task.description && (
+                        <p className="text-sm text-gray-600">
+                          {task.description}
+                        </p>
+                      )}
+
+                      <div className="flex flex-wrap gap-4 text-xs font-medium text-gray-500">
+                        <span>
+                          Priority: {formatPriority(task.priority)}
+                        </span>
+
+                        <span>
+                          Source:{" "}
+                          {task.source === "roadmap"
+                            ? "Roadmap"
+                            : "Opportunity"}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
         </section>
       </div>
     </FlowLayout>

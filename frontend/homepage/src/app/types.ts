@@ -182,7 +182,6 @@ export type StudentTask = {
   status: StudentTaskStatus;
   priority: StudentTaskPriority;
   opportunity_id: number | null;
-  roadmap_step_id: number | null;
   source: StudentTaskSource;
   created_at: string;
   updated_at: string;
@@ -190,5 +189,6 @@ export type StudentTask = {
 };
 
 export type StudentTasksResponse = {
+  user_id: number;
   tasks: StudentTask[];
 };
