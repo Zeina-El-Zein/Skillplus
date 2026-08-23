@@ -32,6 +32,37 @@ function formatGeneratedAt(value?: string) {
   });
 }
 
+function RoadmapGenerationAnimation() {
+  const nodes = [
+    { Icon: Brain, label: "Profile" },
+    { Icon: Map, label: "Plan" },
+    { Icon: CheckCircle2, label: "Ready" },
+  ];
+
+  return (
+    <div
+      aria-hidden="true"
+      data-testid="roadmap-generation-animation"
+      className="relative flex w-full max-w-xs items-start justify-between"
+    >
+      <div className="absolute left-8 right-8 top-6 h-1 overflow-hidden rounded-full bg-blue-100">
+        <div className="roadmap-progress-line h-full rounded-full bg-blue-700" />
+      </div>
+      {nodes.map(({ Icon, label }, index) => (
+        <div key={label} className="relative z-10 flex flex-col items-center gap-2">
+          <div
+            className="roadmap-progress-node flex h-12 w-12 items-center justify-center rounded-full border-4 border-white bg-blue-900 text-white shadow-md"
+            style={{ animationDelay: `${index * 350}ms` }}
+          >
+            <Icon className="h-5 w-5" />
+          </div>
+          <span className="text-xs font-semibold text-blue-900">{label}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function RoadmapPage() {
   const user = getUser();
   const userId = user?.id;
@@ -118,12 +149,7 @@ export default function RoadmapPage() {
           </div>
         ) : generating ? (
           <div role="status" className="flex flex-col items-center gap-4 py-14 text-center text-blue-900">
-            <div className="relative">
-              <div className="absolute inset-0 animate-ping rounded-full bg-blue-100" />
-              <div className="relative flex h-14 w-14 items-center justify-center rounded-full bg-blue-900 text-white">
-                <Brain className="h-7 w-7" />
-              </div>
-            </div>
+            <RoadmapGenerationAnimation />
             <div>
               <p className="font-bold">Building your roadmap...</p>
               <p className="mt-2 max-w-md text-sm leading-relaxed text-gray-500">
@@ -183,7 +209,7 @@ export default function RoadmapPage() {
         ) : result ? (
           <div className="flex flex-col gap-6">
             <div
-              className={`rounded-2xl border p-5 ${
+              className={`roadmap-reveal rounded-2xl border p-5 ${
                 result.source === "fallback"
                   ? "border-amber-200 bg-amber-50"
                   : "border-blue-100 bg-blue-50"
@@ -222,7 +248,7 @@ export default function RoadmapPage() {
               </p>
             )}
 
-            <div className="rounded-2xl bg-gradient-to-r from-blue-900 to-blue-700 p-6 text-white">
+            <div className="roadmap-reveal rounded-2xl bg-gradient-to-r from-blue-900 to-blue-700 p-6 text-white">
               <p className="text-xs font-bold uppercase tracking-widest text-blue-100">Plan summary</p>
               <p className="mt-3 text-base leading-relaxed">{result.roadmap.summary}</p>
             </div>
@@ -231,7 +257,11 @@ export default function RoadmapPage() {
               <h2 className="text-xl font-extrabold text-gray-900">Milestones</h2>
               <div className="mt-4 flex flex-col gap-4">
                 {result.roadmap.milestones.map((milestone, index) => (
-                  <article key={`${milestone.title}-${index}`} className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
+                  <article
+                    key={`${milestone.title}-${index}`}
+                    className="roadmap-reveal rounded-2xl border border-blue-100 bg-white p-5 shadow-sm"
+                    style={{ animationDelay: `${Math.min(index, 6) * 100}ms` }}
+                  >
                     <div className="flex items-start gap-4">
                       <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-blue-900 text-sm font-extrabold text-white">
                         {index + 1}
@@ -267,7 +297,11 @@ export default function RoadmapPage() {
               </h2>
               <ol className="mt-4 space-y-3">
                 {result.roadmap.recommended_next_steps.map((step, index) => (
-                  <li key={`${step}-${index}`} className="flex items-start gap-3 text-sm text-gray-700">
+                  <li
+                    key={`${step}-${index}`}
+                    className="roadmap-reveal flex items-start gap-3 text-sm text-gray-700"
+                    style={{ animationDelay: `${Math.min(index, 6) * 80}ms` }}
+                  >
                     <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-blue-100 text-xs font-bold text-blue-900">
                       {index + 1}
                     </span>

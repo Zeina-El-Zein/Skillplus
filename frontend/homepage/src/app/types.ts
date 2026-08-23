@@ -5,11 +5,13 @@ export type User = {
   name: string;
   email: string;
   role: UserRole;
+  has_profile?: boolean | null;
 };
 
 export type AuthResponse = {
   message: string;
   user: User;
+  has_profile: boolean | null;
 };
 
 export type StudentProfile = {
@@ -22,6 +24,13 @@ export type StudentProfile = {
   career_goal: string;
   available_time_per_week: number;
   preferred_opportunity_type: string;
+  profile_picture_url?: string | null;
+};
+
+export type StudentProfileResponse = StudentProfile & {
+  student_id: number;
+  level: string | null;
+  profile_picture_url: string | null;
 };
 
 export type ProfileResponse = {
@@ -65,6 +74,17 @@ export type InstitutionProfile = {
   institution_name: string;
   website: string | null;
   description: string | null;
+  logo_url?: string | null;
+};
+
+export type ProfilePictureUploadResponse = {
+  message: string;
+  profile_picture_url: string;
+};
+
+export type InstitutionLogoUploadResponse = {
+  message: string;
+  logo_url: string;
 };
 
 export type OpportunityCategory =

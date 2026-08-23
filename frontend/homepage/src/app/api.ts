@@ -1,14 +1,17 @@
 import type {
   AnalysisResult,
   AuthResponse,
+  InstitutionLogoUploadResponse,
   InstitutionProfile,
   OpportunityProcessResponse,
   OpportunitySubmission,
   OpportunitySubmissionResponse,
+  ProfilePictureUploadResponse,
   ProfileResponse,
   RecommendationsResponse,
   RoadmapResponse,
   StudentProfile,
+  StudentProfileResponse,
   UserRole,
 } from "./types";
 
@@ -25,14 +28,16 @@ export class ApiError extends Error {
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   let response: Response;
+  const headers = new Headers(options.headers);
+
+  if (options.body && !(options.body instanceof FormData) && !headers.has("Content-Type")) {
+    headers.set("Content-Type", "application/json");
+  }
 
   try {
     response = await fetch(`${API_URL}${path}`, {
       ...options,
-      headers: {
-        "Content-Type": "application/json",
-        ...options.headers,
-      },
+      headers,
     });
   } catch {
     throw new ApiError("Cannot reach the Skill+ backend. Make sure FastAPI is running.", 0);
@@ -94,6 +99,20 @@ export function saveStudentProfile(profile: StudentProfile) {
   });
 }
 
+export function getStudentProfile(userId: number) {
+  return request<StudentProfileResponse>(`/student/profile/${userId}`);
+}
+
+export function uploadStudentProfilePicture(userId: number, file: File) {
+  const body = new FormData();
+  body.append("file", file);
+
+  return request<ProfilePictureUploadResponse>(`/student/${userId}/profile-picture`, {
+    method: "POST",
+    body,
+  });
+}
+
 export async function analyzeStudentProfile(profile: StudentProfile) {
   const result = await request<AnalysisResult & { missing_skills?: string[] }>(
     `/student/analyze/${profile.user_id}`,
@@ -117,12 +136,33 @@ export function getInstitutionProfile(userId: number) {
 }
 
 export function saveInstitutionProfile(
-  profile: Omit<InstitutionProfile, "id">,
+  profile: Omit<InstitutionProfile, "id" | "logo_url">,
 ) {
   return request<{ message: string; institution_id: number }>("/institution-profile", {
     method: "POST",
     body: JSON.stringify(profile),
   });
+}
+
+export function uploadInstitutionLogo(userId: number, file: File) {
+  const body = new FormData();
+  body.append("file", file);
+
+  return request<InstitutionLogoUploadResponse>(`/institution/${userId}/logo`, {
+    method: "POST",
+    body,
+  });
+}
+
+export function resolveApiAssetUrl(path: string | null | undefined) {
+  if (!path) return null;
+
+  try {
+    const url = new URL(path, `${API_URL}/`);
+    return ["http:", "https:"].includes(url.protocol) ? url.toString() : null;
+  } catch {
+    return null;
+  }
 }
 
 export function processOpportunityDescription(userId: number, description: string) {

@@ -69,7 +69,7 @@ describe("Member 5 complete student flow", () => {
     window.history.pushState({}, "", "/signup");
   });
 
-  it("completes signup, login, profile analysis and ranked recommendations", async () => {
+  it("completes signup, profile analysis and ranked recommendations", async () => {
     const requests: Array<{ path: string; method: string; body: unknown }> = [];
 
     vi.stubGlobal(
@@ -80,11 +80,11 @@ describe("Member 5 complete student flow", () => {
         requests.push({ path: url.pathname, method: init?.method || "GET", body });
 
         if (url.pathname === "/auth/signup") {
-          return Response.json({ message: "User created successfully", user });
-        }
-
-        if (url.pathname === "/auth/login") {
-          return Response.json({ message: "Login successful", user });
+          return Response.json({
+            message: "User created successfully",
+            user,
+            has_profile: false,
+          });
         }
 
         if (url.pathname === "/student-profile") {
@@ -117,10 +117,6 @@ describe("Member 5 complete student flow", () => {
     await browser.type(screen.getByLabelText(/Confirm password/i), "password123");
     await browser.click(screen.getByRole("button", { name: /Create account/i }));
 
-    expect(await screen.findByRole("heading", { name: /Welcome back/i })).toBeInTheDocument();
-    await browser.type(screen.getByLabelText(/Password/i), "password123");
-    await browser.click(screen.getByRole("button", { name: /Log in/i }));
-
     expect(await screen.findByRole("heading", { name: /Build your student profile/i })).toBeInTheDocument();
     await browser.selectOptions(
       screen.getByLabelText(/Major/i),
@@ -149,10 +145,9 @@ describe("Member 5 complete student flow", () => {
       screen.getAllByRole("link", { name: /Apply for this opportunity/i })[0],
     ).toHaveAttribute("href", "https://example.com/apply/backend");
 
-    await waitFor(() => expect(requests).toHaveLength(5));
+    await waitFor(() => expect(requests).toHaveLength(4));
     expect(requests.map((request) => request.path)).toEqual([
       "/auth/signup",
-      "/auth/login",
       "/student-profile",
       "/student/analyze/1",
       "/student/1/recommendations",
@@ -163,7 +158,7 @@ describe("Member 5 complete student flow", () => {
       password: "password123",
       role: "student",
     });
-    expect(requests[2].body).toEqual({
+    expect(requests[1].body).toEqual({
       user_id: 1,
       major: "Computer and Communications Engineering",
       year_of_study: 3,
@@ -174,8 +169,8 @@ describe("Member 5 complete student flow", () => {
       available_time_per_week: 6,
       preferred_opportunity_type: "Internship",
     });
-    expect(requests[3]).toMatchObject({ method: "POST", body: null });
-    expect(requests[4]).toEqual({
+    expect(requests[2]).toMatchObject({ method: "POST", body: null });
+    expect(requests[3]).toEqual({
       path: "/student/1/recommendations",
       method: "GET",
       body: null,
@@ -184,7 +179,13 @@ describe("Member 5 complete student flow", () => {
 
   it("shows a useful duplicate-email error and login path", async () => {
     const fetchMock = vi.fn(async () =>
-      Response.json({ detail: "Email already registered" }, { status: 400 }),
+      Response.json(
+        {
+          detail:
+            "An account already exists with this email. Each email can only be associated with one Skill+ account and role. Please log in using your existing account.",
+        },
+        { status: 400 },
+      ),
     );
     vi.stubGlobal("fetch", fetchMock);
 
@@ -205,6 +206,100 @@ describe("Member 5 complete student flow", () => {
       "/login",
     );
     expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("routes a returning student with a saved profile to recommendations", async () => {
+    window.history.pushState({}, "", "/login");
+    const requests: string[] = [];
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const path = new URL(String(input)).pathname;
+        requests.push(path);
+
+        if (path === "/auth/login") {
+          return Response.json({
+            message: "Login successful",
+            user,
+            has_profile: true,
+          });
+        }
+
+        if (path === "/student/1/recommendations") {
+          return Response.json({ user_id: 1, recommendations: [] });
+        }
+
+        return Response.json({ detail: "Not found" }, { status: 404 });
+      }),
+    );
+
+    const browser = userEvent.setup();
+    render(<App />);
+    await browser.type(screen.getByLabelText(/Email address/i), user.email);
+    await browser.type(screen.getByLabelText(/Password/i), "password123");
+    await browser.click(screen.getByRole("button", { name: /Log in/i }));
+
+    expect(await screen.findByText("No recommendations yet")).toBeInTheDocument();
+    expect(requests).toEqual(["/auth/login", "/student/1/recommendations"]);
+    expect(JSON.parse(window.localStorage.getItem("skillplus_user") || "{}"))
+      .toMatchObject({ id: 1, role: "student", has_profile: true });
+  });
+
+  it("loads an existing student profile and profile picture for editing", async () => {
+    window.localStorage.setItem(
+      "skillplus_user",
+      JSON.stringify({ ...user, has_profile: true }),
+    );
+    window.history.pushState({}, "", "/profile");
+    const fetchMock = vi.fn(async () =>
+      Response.json({
+        student_id: 4,
+        user_id: 1,
+        major: "Computer Science",
+        year_of_study: 3,
+        courses_taken: ["Data Structures", "Databases"],
+        current_skills: ["Python", "SQL"],
+        interests: ["AI"],
+        career_goal: "Software Engineer",
+        available_time_per_week: 8,
+        preferred_opportunity_type: "Internship",
+        level: "Intermediate",
+        profile_picture_url: "/uploads/profile-pictures/4_existing.jpg",
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<App />);
+
+    expect(await screen.findByLabelText(/Major/i)).toHaveValue("Computer Science");
+    expect(screen.getByLabelText(/Courses taken/i)).toHaveValue(
+      "Data Structures, Databases",
+    );
+    expect(screen.getByRole("img", { name: /Alex Morgan's profile picture/i }))
+      .toHaveAttribute(
+        "src",
+        "http://localhost:8000/uploads/profile-pictures/4_existing.jpg",
+      );
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(String(fetchMock.mock.calls[0][0])).toContain("/student/profile/1");
+  });
+
+  it("ends an expired local session before showing a protected page", async () => {
+    storeUser();
+    window.localStorage.setItem("skillplus_session_expiry", String(Date.now() - 1));
+    window.history.pushState({}, "", "/profile");
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<App />);
+
+    expect(
+      await screen.findByRole("heading", { name: /Welcome back/i }),
+    ).toBeInTheDocument();
+    expect(window.localStorage.getItem("skillplus_user")).toBeNull();
+    expect(window.localStorage.getItem("skillplus_session_expiry")).toBeNull();
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it("rejects an empty signup form before calling the backend", async () => {
@@ -453,13 +548,7 @@ describe("Member 5 Issue #40 role-aware frontend", () => {
           return Response.json({
             message: "User created successfully",
             user: institutionUser,
-          });
-        }
-
-        if (url.pathname === "/auth/login") {
-          return Response.json({
-            message: "Login successful",
-            user: institutionUser,
+            has_profile: null,
           });
         }
 
@@ -519,10 +608,6 @@ describe("Member 5 Issue #40 role-aware frontend", () => {
     await browser.type(screen.getByLabelText(/Confirm password/i), "password123");
     await browser.click(screen.getByRole("button", { name: /Create account/i }));
 
-    expect(await screen.findByRole("heading", { name: /Welcome back/i })).toBeInTheDocument();
-    await browser.type(screen.getByLabelText(/Password/i), "password123");
-    await browser.click(screen.getByRole("button", { name: /Log in/i }));
-
     expect(
       await screen.findByRole("heading", { name: /Institution dashboard/i }),
     ).toBeInTheDocument();
@@ -581,10 +666,9 @@ describe("Member 5 Issue #40 role-aware frontend", () => {
     ).toBeInTheDocument();
     expect(screen.getByText(/Opportunity ID: 12/i)).toBeInTheDocument();
 
-    await waitFor(() => expect(requests).toHaveLength(6));
+    await waitFor(() => expect(requests).toHaveLength(5));
     expect(requests.map((request) => request.path)).toEqual([
       "/auth/signup",
-      "/auth/login",
       "/institution/3",
       "/institution-profile",
       "/institution/opportunities/process",
@@ -596,17 +680,17 @@ describe("Member 5 Issue #40 role-aware frontend", () => {
       password: "password123",
       role: "institution",
     });
-    expect(requests[3].body).toEqual({
+    expect(requests[2].body).toEqual({
       user_id: 3,
       institution_name: "AUB Career Office",
       website: "https://www.aub.edu.lb/careerhub",
       description: "Connects students with verified career opportunities.",
     });
-    expect(requests[4].body).toEqual({
+    expect(requests[3].body).toEqual({
       user_id: 3,
       description,
     });
-    expect(requests[5].body).toEqual({
+    expect(requests[4].body).toEqual({
       user_id: 3,
       title: "Software Engineering Internship",
       category: "Internship",
@@ -764,6 +848,49 @@ describe("Member 5 Issue #40 role-aware frontend", () => {
     ]);
   });
 
+  it("shows the animated roadmap progress state while generation is pending", async () => {
+    storeUser();
+    window.history.pushState({}, "", "/roadmap");
+    let resolveGeneration!: (response: Response) => void;
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+        if (!init?.method) {
+          return Response.json({ detail: "Roadmap not found." }, { status: 404 });
+        }
+
+        return new Promise<Response>((resolve) => {
+          resolveGeneration = resolve;
+        });
+      }),
+    );
+
+    const browser = userEvent.setup();
+    render(<App />);
+    await screen.findByText("No roadmap generated yet");
+    await browser.click(
+      screen.getByRole("button", { name: /Generate my roadmap/i }),
+    );
+
+    expect(screen.getByText("Building your roadmap...")).toBeInTheDocument();
+    expect(screen.getByTestId("roadmap-generation-animation")).toBeInTheDocument();
+
+    resolveGeneration(
+      Response.json({
+        user_id: 1,
+        source: "fallback",
+        roadmap: {
+          summary: "Generation finished successfully.",
+          milestones: [],
+          recommended_next_steps: [],
+        },
+      }),
+    );
+
+    expect(await screen.findByText("Generation finished successfully.")).toBeInTheDocument();
+  });
+
   it("shows a roadmap loading error and retries the cached request", async () => {
     storeUser();
     window.history.pushState({}, "", "/roadmap");
@@ -842,6 +969,194 @@ describe("Member 5 Issue #40 role-aware frontend", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  it("uploads a validated student profile picture as multipart form data", async () => {
+    storeUser();
+    window.history.pushState({}, "", "/profile");
+    const requests: Array<{
+      path: string;
+      body: BodyInit | null | undefined;
+      headers: Headers;
+    }> = [];
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const path = new URL(String(input)).pathname;
+        requests.push({
+          path,
+          body: init?.body,
+          headers: new Headers(init?.headers),
+        });
+
+        if (path === "/student-profile") {
+          return Response.json({
+            message: "Student profile saved successfully",
+            student_id: 4,
+          });
+        }
+
+        if (path === "/student/1/profile-picture") {
+          return Response.json({
+            message: "Profile picture uploaded successfully",
+            profile_picture_url: "/uploads/profile-pictures/4_profile.jpg",
+          });
+        }
+
+        if (path === "/student/analyze/1") {
+          return Response.json({
+            level: "Intermediate",
+            strengths: ["Profile completed"],
+            missing: ["Git"],
+            next_step: "Practice Git workflows.",
+          });
+        }
+
+        return Response.json({ detail: "Not found" }, { status: 404 });
+      }),
+    );
+
+    const browser = userEvent.setup();
+    render(<App />);
+    const picture = new File(
+      [new Uint8Array([0xff, 0xd8, 0xff, 0xd9])],
+      "profile.jpg",
+      { type: "image/jpeg" },
+    );
+
+    await browser.upload(screen.getByLabelText(/Profile picture/i), picture);
+    await browser.selectOptions(
+      screen.getByLabelText(/Major/i),
+      "Computer and Communications Engineering",
+    );
+    await browser.selectOptions(screen.getByLabelText(/Year of study/i), "3");
+    await browser.type(screen.getByLabelText(/Courses taken/i), "Data Structures");
+    await browser.type(screen.getByLabelText(/Current skills/i), "Python");
+    await browser.type(screen.getByLabelText(/Interests/i), "AI");
+    await browser.type(screen.getByLabelText(/Career goal/i), "Software Engineer");
+    await browser.type(screen.getByLabelText(/Available hours per week/i), "6");
+    await browser.click(screen.getByRole("button", { name: /Save and analyze profile/i }));
+
+    expect(
+      await screen.findByRole("heading", { name: /Your analysis is ready/i }),
+    ).toBeInTheDocument();
+    expect(requests.map(({ path }) => path)).toEqual([
+      "/student-profile",
+      "/student/1/profile-picture",
+      "/student/analyze/1",
+    ]);
+
+    const uploadRequest = requests[1];
+    expect(uploadRequest.body).toBeInstanceOf(FormData);
+    expect((uploadRequest.body as FormData).get("file")).toBe(picture);
+    expect(uploadRequest.headers.has("Content-Type")).toBe(false);
+    expect(JSON.parse(window.localStorage.getItem("skillplus_profile") || "{}"))
+      .toMatchObject({
+        user_id: 1,
+        profile_picture_url: "/uploads/profile-pictures/4_profile.jpg",
+      });
+  });
+
+  it("rejects an unsupported profile picture before any backend request", async () => {
+    storeUser();
+    window.history.pushState({}, "", "/profile");
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const browser = userEvent.setup({ applyAccept: false });
+    render(<App />);
+    await browser.upload(
+      screen.getByLabelText(/Profile picture/i),
+      new File(["not an image"], "notes.txt", { type: "text/plain" }),
+    );
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Only JPG, PNG and WEBP images are allowed.",
+    );
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("uploads and displays an institution logo", async () => {
+    storeInstitutionUser();
+    window.history.pushState({}, "", "/institution/dashboard");
+    const requests: Array<{
+      path: string;
+      body: BodyInit | null | undefined;
+      headers: Headers;
+    }> = [];
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const path = new URL(String(input)).pathname;
+        requests.push({
+          path,
+          body: init?.body,
+          headers: new Headers(init?.headers),
+        });
+
+        if (path === "/institution/3" && !init?.method) {
+          return Response.json({
+            id: 7,
+            user_id: 3,
+            institution_name: "AUB Career Office",
+            website: "https://www.aub.edu.lb/careerhub",
+            description: "Connects students with career opportunities.",
+            logo_url: null,
+          });
+        }
+
+        if (path === "/institution-profile") {
+          return Response.json({
+            message: "Institution profile saved successfully",
+            institution_id: 7,
+          });
+        }
+
+        if (path === "/institution/3/logo") {
+          return Response.json({
+            message: "Institution logo uploaded successfully",
+            logo_url: "/uploads/logos/7_logo.png",
+          });
+        }
+
+        return Response.json({ detail: "Not found" }, { status: 404 });
+      }),
+    );
+
+    const browser = userEvent.setup();
+    render(<App />);
+    await screen.findByRole("heading", { name: "AUB Career Office" });
+    await browser.click(screen.getByRole("button", { name: /Edit profile/i }));
+
+    const logo = new File(
+      [new Uint8Array([0x89, 0x50, 0x4e, 0x47])],
+      "logo.png",
+      { type: "image/png" },
+    );
+    await browser.upload(screen.getByLabelText(/Institution logo/i), logo);
+    await browser.click(
+      screen.getByRole("button", { name: /Save institution profile/i }),
+    );
+
+    expect(
+      await screen.findByText("Institution profile saved successfully."),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: /AUB Career Office logo/i })).toHaveAttribute(
+      "src",
+      "http://localhost:8000/uploads/logos/7_logo.png",
+    );
+    expect(requests.map(({ path }) => path)).toEqual([
+      "/institution/3",
+      "/institution-profile",
+      "/institution/3/logo",
+    ]);
+
+    const uploadRequest = requests[2];
+    expect(uploadRequest.body).toBeInstanceOf(FormData);
+    expect((uploadRequest.body as FormData).get("file")).toBe(logo);
+    expect(uploadRequest.headers.has("Content-Type")).toBe(false);
+  });
+
   it("removes unsupported homepage claims and names only real AI features", () => {
     window.history.pushState({}, "", "/");
     render(<App />);
@@ -852,5 +1167,11 @@ describe("Member 5 Issue #40 role-aware frontend", () => {
     expect(screen.getByText("Rule-based profile analysis")).toBeInTheDocument();
     expect(screen.getByText("Transparent match scores")).toBeInTheDocument();
     expect(screen.getByText("AI-assisted roadmaps")).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Privacy" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Terms" })).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Email Skill\+ support/i })).toHaveAttribute(
+      "href",
+      "mailto:skillplus.teamm@gmail.com",
+    );
   });
 });
