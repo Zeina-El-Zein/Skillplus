@@ -751,7 +751,37 @@ Status:
 ```text
 404 Not Found
 ```
+## POST `/opportunities/{opportunity_id}/view`
 
+Records that a student opened an opportunity's details.
+
+The student's `user_id` is passed as a query parameter and converted to
+`students.id` internally.
+
+Example:
+
+```text
+POST /opportunities/23/view?user_id=2
+```
+
+Response:
+
+```json
+{
+  "message": "View recorded"
+}
+```
+
+A view is recorded only when a student opens an opportunity's details, not when
+the opportunity simply appears in a list. The frontend should call this endpoint
+from the opportunity detail view.
+
+Views feed the aggregated `views` count shown to institutions. Repeat views by
+the same student are counted once, because the statistics count distinct students.
+
+Unknown opportunity or missing student profile → `404`.
+
+---
 ---
 
 # Recommendation Endpoint
@@ -1522,6 +1552,7 @@ GET /institution/{user_id}
 POST /institution/opportunities/process
 POST /institution/opportunities
 GET /institution/{user_id}/opportunities
+GET /institution/{user_id}/opportunities/all
 ```
 
 Opportunities:
@@ -1529,4 +1560,5 @@ Opportunities:
 ```text
 GET /opportunities
 GET /opportunities/{opportunity_id}
+POST /opportunities/{opportunity_id}/view
 ```
