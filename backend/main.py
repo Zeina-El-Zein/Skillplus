@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 from uuid import uuid4
-
+from sqlalchemy.exc import IntegrityError
 from fastapi import (
     FastAPI,
     Depends,
@@ -603,6 +603,27 @@ def create_student_task(
             }
         ).mappings().fetchone()
 
+        if task.source == "opportunity":
+            db.execute(
+                text("""
+                    INSERT INTO opportunity_interactions (
+                        opportunity_id,
+                        student_id,
+                        interaction_type
+                    )
+                    VALUES (
+                        :opportunity_id,
+                        :student_id,
+                        'added_to_todo'
+                    )
+                """),
+                {
+                    "opportunity_id": task.opportunity_id,
+                    "student_id": student_id
+                }
+            )
+
+
         db.commit()
 
         return {
@@ -613,6 +634,27 @@ def create_student_task(
     except HTTPException:
         db.rollback()
         raise
+
+    except IntegrityError as e:
+        db.rollback()
+
+        if (
+            getattr(e.orig, "pgcode", None) == "23505"
+            and getattr(
+                getattr(e.orig, "diag", None),
+                "constraint_name",
+                None
+            ) == "unique_student_opportunity"
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="This opportunity is already in your To-Do list."
+            )
+
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Could not create task because of a database constraint."
+        )
 
     except Exception as e:
         db.rollback()
