@@ -1945,3 +1945,40 @@ def get_cached_student_roadmap(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Could not retrieve roadmap."
         )
+
+@app.get("/institution/{user_id}/opportunities")
+def get_institution_opportunities(user_id: int, db: Session = Depends(get_db)):
+    """
+    Returns the logged-in institution's own opportunities with aggregated
+    engagement statistics. Institutions can only see their own data, and
+    never individual student activity.
+    """
+    require_institution(user_id, db)
+
+    try:
+        rows = db.execute(
+            text("""
+                SELECT
+                    o.id, o.title, o.category, o.difficulty,
+                    o.deadline, o.created_at,
+                    COUNT(DISTINCT CASE WHEN i.interaction_type = 'view'
+                          THEN i.student_id END) AS views,
+                    COUNT(DISTINCT CASE WHEN i.interaction_type = 'added_to_todo'
+                          THEN i.student_id END) AS added_to_todo
+                FROM opportunities o
+                JOIN institutions inst ON o.institution_id = inst.id
+                LEFT JOIN opportunity_interactions i ON i.opportunity_id = o.id
+                WHERE inst.user_id = :user_id
+                GROUP BY o.id
+                ORDER BY o.created_at DESC
+            """),
+            {"user_id": user_id}
+        ).mappings().all()
+
+        return [dict(row) for row in rows]
+
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Could not retrieve institution opportunities."
+        )
