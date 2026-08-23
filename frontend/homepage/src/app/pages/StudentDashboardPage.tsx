@@ -1,10 +1,17 @@
 import { useEffect, useState } from "react";
-import { Navigate } from "react-router";
-import { getStudentTasks } from "../api";
+import { Navigate, useNavigate } from "react-router";
+import {
+  getStudentProfile,
+  getStudentTasks,
+  resolveApiAssetUrl,
+} from "../api";
 import FlowLayout from "../components/FlowLayout";
 import { getUser } from "../storage";
 import { getCurrentTasks } from "../taskUtils";
-import type { StudentTask } from "../types";
+import type {
+  StudentProfileResponse,
+  StudentTask,
+} from "../types";
 
 function formatPriority(priority: StudentTask["priority"]) {
   return priority.charAt(0).toUpperCase() + priority.slice(1);
@@ -22,32 +29,87 @@ function formatStatus(status: StudentTask["status"]) {
   return "Done";
 }
 
+function getInitials(name: string) {
+  const parts = name
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+
+  if (parts.length === 0) {
+    return "?";
+  }
+
+  if (parts.length === 1) {
+    return parts[0].slice(0, 2).toUpperCase();
+  }
+
+  return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
+}
+
 export default function StudentDashboardPage() {
+  const navigate = useNavigate();
   const user = getUser();
+
   const userId = user?.id;
   const userRole = user?.role;
 
-  const [currentTasks, setCurrentTasks] = useState<StudentTask[]>([]);
+  const [profile, setProfile] =
+    useState<StudentProfileResponse | null>(null);
+
+  const [profileLoading, setProfileLoading] = useState(true);
+  const [profileError, setProfileError] = useState("");
+
+  const [currentTasks, setCurrentTasks] =
+    useState<StudentTask[]>([]);
+
   const [tasksLoading, setTasksLoading] = useState(true);
   const [tasksError, setTasksError] = useState("");
 
   useEffect(() => {
     if (!userId || userRole !== "student") {
+      setProfileLoading(false);
       setTasksLoading(false);
       return;
     }
 
     let cancelled = false;
 
-    async function loadTasks(activeUserId: number) {
+    async function loadDashboardData(activeUserId: number) {
+      setProfileLoading(true);
       setTasksLoading(true);
+
+      setProfileError("");
       setTasksError("");
 
       try {
-        const response = await getStudentTasks(activeUserId);
+        const profileResponse =
+          await getStudentProfile(activeUserId);
 
         if (!cancelled) {
-          setCurrentTasks(getCurrentTasks(response.tasks));
+          setProfile(profileResponse);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setProfileError(
+            error instanceof Error
+              ? error.message
+              : "Could not load your student profile.",
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          setProfileLoading(false);
+        }
+      }
+
+      try {
+        const tasksResponse =
+          await getStudentTasks(activeUserId);
+
+        if (!cancelled) {
+          setCurrentTasks(
+            getCurrentTasks(tasksResponse.tasks),
+          );
         }
       } catch (error) {
         if (!cancelled) {
@@ -64,7 +126,7 @@ export default function StudentDashboardPage() {
       }
     }
 
-    loadTasks(userId);
+    loadDashboardData(userId);
 
     return () => {
       cancelled = true;
@@ -76,8 +138,18 @@ export default function StudentDashboardPage() {
   }
 
   if (user.role === "institution") {
-    return <Navigate to="/institution/dashboard" replace />;
+    return (
+      <Navigate
+        to="/institution/dashboard"
+        replace
+      />
+    );
   }
+
+  const profilePictureUrl =
+    resolveApiAssetUrl(profile?.profile_picture_url);
+
+  const initials = getInitials(user.name);
 
   return (
     <FlowLayout showSteps={false} wide>
@@ -85,54 +157,90 @@ export default function StudentDashboardPage() {
         <div>
           <h1
             className="text-3xl font-extrabold text-gray-900"
-            style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+            style={{
+              fontFamily:
+                "'Plus Jakarta Sans', sans-serif",
+            }}
           >
             Dashboard
           </h1>
 
           <p className="mt-2 text-gray-500">
-            Welcome back. Here’s an overview of your Skill+ journey.
+            Welcome back, {user.name}. Here’s an overview
+            of your Skill+ journey.
           </p>
         </div>
 
         <section className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-5">
-            <div className="flex flex-col sm:flex-row sm:items-center gap-5">
-              <div className="w-20 h-20 rounded-full bg-blue-100 flex items-center justify-center text-blue-900 text-2xl font-bold">
-                SC
-              </div>
+          {profileLoading && (
+            <p className="text-sm text-gray-500">
+              Loading your profile...
+            </p>
+          )}
 
-              <div>
-                <h2 className="text-2xl font-bold text-gray-900">
-                  Student Name
-                </h2>
-
-                <p className="mt-1 text-gray-600">
-                  Major
-                </p>
-
-                <p className="mt-1 text-sm text-gray-500">
-                  Year of study
-                </p>
-              </div>
+          {!profileLoading && profileError && (
+            <div className="rounded-xl border border-red-100 bg-red-50 p-4">
+              <p className="text-sm text-red-700">
+                {profileError}
+              </p>
             </div>
+          )}
 
-            <div className="flex flex-col sm:flex-row gap-3">
-              <button
-                type="button"
-                className="px-5 py-2.5 rounded-full border border-blue-900 text-blue-900 font-semibold hover:bg-blue-50 transition-colors"
-              >
-                Edit Profile
-              </button>
+          {!profileLoading &&
+            !profileError &&
+            profile && (
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-5">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-5">
+                  {profilePictureUrl ? (
+                    <img
+                      src={profilePictureUrl}
+                      alt={`${user.name} profile`}
+                      className="w-20 h-20 rounded-full object-cover border border-gray-200"
+                    />
+                  ) : (
+                    <div className="w-20 h-20 rounded-full bg-blue-100 flex items-center justify-center text-blue-900 text-2xl font-bold">
+                      {initials}
+                    </div>
+                  )}
 
-              <button
-                type="button"
-                className="px-5 py-2.5 rounded-full bg-blue-900 text-white font-semibold hover:bg-blue-800 transition-colors"
-              >
-                View Full Analysis
-              </button>
-            </div>
-          </div>
+                  <div>
+                    <h2 className="text-2xl font-bold text-gray-900">
+                      {user.name}
+                    </h2>
+
+                    <p className="mt-1 text-gray-600">
+                      {profile.major}
+                    </p>
+
+                    <p className="mt-1 text-sm text-gray-500">
+                      Year {profile.year_of_study}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      navigate("/profile")
+                    }
+                    className="px-5 py-2.5 rounded-full border border-blue-900 text-blue-900 font-semibold hover:bg-blue-50 transition-colors"
+                  >
+                    Edit Profile
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      navigate("/results")
+                    }
+                    className="px-5 py-2.5 rounded-full bg-blue-900 text-white font-semibold hover:bg-blue-800 transition-colors"
+                  >
+                    View Full Analysis
+                  </button>
+                </div>
+              </div>
+            )}
         </section>
 
         <section className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
@@ -142,53 +250,89 @@ export default function StudentDashboardPage() {
             </h2>
 
             <p className="mt-1 text-sm text-gray-500">
-              A quick overview of your current profile and goals.
+              A quick overview of your current profile
+              and goals.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            <div className="rounded-xl bg-gray-50 border border-gray-100 p-4">
-              <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
-                Current level
-              </p>
+          {profileLoading && (
+            <p className="text-sm text-gray-500">
+              Loading your summary...
+            </p>
+          )}
 
-              <p className="mt-2 font-semibold text-gray-900">
-                Student level
-              </p>
-            </div>
-
-            <div className="rounded-xl bg-gray-50 border border-gray-100 p-4">
-              <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
-                Career goal
-              </p>
-
-              <p className="mt-2 font-semibold text-gray-900">
-                Career goal
-              </p>
-            </div>
-
-            <div className="rounded-xl bg-gray-50 border border-gray-100 p-4">
-              <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
-                Preferred opportunity
-              </p>
-
-              <p className="mt-2 font-semibold text-gray-900">
-                Opportunity type
-              </p>
-            </div>
-
-            <div className="rounded-xl bg-gray-50 border border-gray-100 p-4">
-              <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
-                Skills
-              </p>
-
-              <div className="mt-2 flex flex-wrap gap-2">
-                <span className="rounded-full bg-blue-50 border border-blue-100 px-3 py-1 text-sm font-medium text-blue-800">
-                  Skill
-                </span>
+          {!profileLoading &&
+            profileError && (
+              <div className="rounded-xl border border-red-100 bg-red-50 p-4">
+                <p className="text-sm text-red-700">
+                  {profileError}
+                </p>
               </div>
-            </div>
-          </div>
+            )}
+
+          {!profileLoading &&
+            !profileError &&
+            profile && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div className="rounded-xl bg-gray-50 border border-gray-100 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+                    Current level
+                  </p>
+
+                  <p className="mt-2 font-semibold text-gray-900">
+                    {profile.level ||
+                      "Not analyzed yet"}
+                  </p>
+                </div>
+
+                <div className="rounded-xl bg-gray-50 border border-gray-100 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+                    Career goal
+                  </p>
+
+                  <p className="mt-2 font-semibold text-gray-900">
+                    {profile.career_goal ||
+                      "Not specified"}
+                  </p>
+                </div>
+
+                <div className="rounded-xl bg-gray-50 border border-gray-100 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+                    Preferred opportunity
+                  </p>
+
+                  <p className="mt-2 font-semibold text-gray-900">
+                    {profile.preferred_opportunity_type ||
+                      "Not specified"}
+                  </p>
+                </div>
+
+                <div className="rounded-xl bg-gray-50 border border-gray-100 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+                    Skills
+                  </p>
+
+                  {profile.current_skills.length > 0 ? (
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {profile.current_skills.map(
+                        (skill) => (
+                          <span
+                            key={skill}
+                            className="rounded-full bg-blue-50 border border-blue-100 px-3 py-1 text-sm font-medium text-blue-800"
+                          >
+                            {skill}
+                          </span>
+                        ),
+                      )}
+                    </div>
+                  ) : (
+                    <p className="mt-2 text-sm text-gray-500">
+                      No skills added yet.
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
         </section>
 
         <section className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
@@ -198,7 +342,8 @@ export default function StudentDashboardPage() {
             </h2>
 
             <p className="mt-1 text-sm text-gray-500">
-              Your current focus and next recommended step.
+              Your current focus and next recommended
+              step.
             </p>
           </div>
 
@@ -227,8 +372,9 @@ export default function StudentDashboardPage() {
                 </h3>
 
                 <p className="mt-2 text-sm text-gray-600">
-                  You don’t have any active tasks right now. Explore your
-                  recommendations or roadmap to find your next step.
+                  You don’t have any active tasks right
+                  now. Explore your recommendations or
+                  roadmap to find your next step.
                 </p>
               </div>
             )}
@@ -249,7 +395,9 @@ export default function StudentDashboardPage() {
                         </h3>
 
                         <span className="shrink-0 rounded-full bg-blue-50 border border-blue-100 px-3 py-1 text-xs font-semibold text-blue-800">
-                          {formatStatus(task.status)}
+                          {formatStatus(
+                            task.status,
+                          )}
                         </span>
                       </div>
 
@@ -261,12 +409,16 @@ export default function StudentDashboardPage() {
 
                       <div className="flex flex-wrap gap-4 text-xs font-medium text-gray-500">
                         <span>
-                          Priority: {formatPriority(task.priority)}
+                          Priority:{" "}
+                          {formatPriority(
+                            task.priority,
+                          )}
                         </span>
 
                         <span>
                           Source:{" "}
-                          {task.source === "roadmap"
+                          {task.source ===
+                          "roadmap"
                             ? "Roadmap"
                             : "Opportunity"}
                         </span>
