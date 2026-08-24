@@ -4,7 +4,6 @@ import { Navigate } from "react-router";
 
 import {
   deleteStudentTask,
-  getStudentProfile,
   getStudentTasks,
   reanalyzeStudent,
   updateStudentTaskPriority,
@@ -153,12 +152,7 @@ export default function ToDoPage() {
     setReanalyzeError("");
 
     try {
-      const profile = await getStudentProfile(userId);
-
-      await reanalyzeStudent(
-        profile.student_id,
-        "manual",
-      );
+      await reanalyzeStudent(userId, "manual");
 
       setReanalyzeMessage(
         "Reanalysis complete. Your level and roadmap have been updated.",

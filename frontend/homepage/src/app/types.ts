@@ -210,10 +210,10 @@ export type StudentTasksResponse = {
 export type ReanalyzeTrigger = "profile_edit" | "manual";
 
 export type ReanalyzeOpportunityMatch = {
-  opportunity_id: number;
+  opportunity: Record<string, unknown>;
   score: number;
   reasons: string[];
-  match_level: string;
+  match_level: number;
 };
 
 export type ReanalyzeRoadmapStep = {
@@ -228,11 +228,13 @@ export type ReanalyzeRoadmapStep = {
 };
 
 export type ReanalyzeResponse = {
+  user_id: number;
   level: string;
+  source: "ai" | "fallback";
   roadmap: {
     summary: string;
-    source: "ai" | "fallback";
     steps: ReanalyzeRoadmapStep[];
   };
+  trigger: ReanalyzeTrigger;
   updated_at: string;
 };

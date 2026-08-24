@@ -263,11 +263,11 @@ export function deleteStudentTask(
 }
 
 export function reanalyzeStudent(
-  studentId: number,
+  userId: number,
   trigger: ReanalyzeTrigger = "manual",
 ) {
   return request<ReanalyzeResponse>(
-    `/api/students/${studentId}/reanalyze`,
+    `/student/${userId}/reanalyze`,
     {
       method: "POST",
       body: JSON.stringify({ trigger }),
