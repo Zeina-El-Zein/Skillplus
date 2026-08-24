@@ -29,6 +29,7 @@ import RecommendationsPage from "./pages/RecommendationsPage";
 import RoadmapPage from "./pages/RoadmapPage";
 import ResultsPage from "./pages/ResultsPage";
 import SignupPage from "./pages/SignupPage";
+import StudentDashboardPage from "./pages/StudentDashboardPage";
 import { authenticatedHome } from "./routing";
 import { getUser } from "./storage";
 
@@ -43,6 +44,7 @@ const NAV_LINKS = [
 function Nav() {
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
+
   return (
     <header className="sticky top-0 z-50 w-full bg-white/80 backdrop-blur-md border-b border-border">
       <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
@@ -50,6 +52,7 @@ function Nav() {
           <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-900 to-blue-700 flex items-center justify-center shadow-sm">
             <Sparkles className="w-4 h-4 text-white" />
           </div>
+
           <span
             className="text-xl font-extrabold tracking-tight"
             style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", color: "#0D1B2A" }}
@@ -78,6 +81,7 @@ function Nav() {
           >
             Log In
           </button>
+
           <button
             onClick={() => navigate("/signup")}
             className="text-sm font-semibold text-white bg-blue-900 hover:bg-blue-800 transition-colors px-4 py-2 rounded-full shadow-sm"
@@ -97,10 +101,15 @@ function Nav() {
       {open && (
         <div className="md:hidden bg-white border-t border-border px-6 py-4 flex flex-col gap-4">
           {NAV_LINKS.map((link) => (
-            <a key={link.href} href={link.href} className="text-sm font-medium text-gray-700">
+            <a
+              key={link.href}
+              href={link.href}
+              className="text-sm font-medium text-gray-700"
+            >
               {link.label}
             </a>
           ))}
+
           <div className="flex items-center gap-3">
             <button
               onClick={() => navigate("/login")}
@@ -108,6 +117,7 @@ function Nav() {
             >
               Log In
             </button>
+
             <button
               onClick={() => navigate("/signup")}
               className="text-sm font-semibold text-white bg-blue-900 rounded-full px-4 py-2"
@@ -123,13 +133,14 @@ function Nav() {
 
 function Hero() {
   const navigate = useNavigate();
+
   return (
     <section id="home" className="relative overflow-hidden pt-24 pb-28 px-6">
-      {/* Background blobs */}
       <div
         className="absolute -top-32 -left-32 w-[520px] h-[520px] rounded-full opacity-20 blur-3xl pointer-events-none"
         style={{ background: "radial-gradient(circle, #1E3A8A, transparent 70%)" }}
       />
+
       <div
         className="absolute -bottom-24 right-0 w-[420px] h-[420px] rounded-full opacity-15 blur-3xl pointer-events-none"
         style={{ background: "radial-gradient(circle, #1D4ED8, transparent 70%)" }}
@@ -176,6 +187,7 @@ function Hero() {
             Get Started
             <ArrowRight className="w-4 h-4" />
           </button>
+
           <button
             className="inline-flex items-center gap-2 bg-white text-gray-700 font-semibold text-base px-7 py-3.5 rounded-full border border-gray-200 hover:border-blue-300 hover:text-blue-900 transition-all shadow-sm"
             style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
@@ -186,12 +198,14 @@ function Hero() {
         </div>
 
         <div className="mt-14 flex flex-wrap items-center justify-center gap-6 text-sm text-gray-500">
-          {["Rule-based profile analysis", "Transparent match scores", "AI-assisted roadmaps"].map((stat) => (
-            <div key={stat} className="flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 text-blue-700" />
-              <span style={{ fontFamily: "'Inter', sans-serif" }}>{stat}</span>
-            </div>
-          ))}
+          {["Rule-based profile analysis", "Transparent match scores", "AI-assisted roadmaps"].map(
+            (stat) => (
+              <div key={stat} className="flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-blue-700" />
+                <span style={{ fontFamily: "'Inter', sans-serif" }}>{stat}</span>
+              </div>
+            ),
+          )}
         </div>
       </div>
     </section>
@@ -236,12 +250,14 @@ function HowItWorks() {
           >
             The Process
           </p>
+
           <h2
             className="text-4xl md:text-5xl font-extrabold tracking-tight text-gray-900"
             style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
           >
             How Skill+ Works
           </h2>
+
           <p
             className="text-gray-500 mt-4 max-w-xl mx-auto text-lg"
             style={{ fontFamily: "'Inter', sans-serif" }}
@@ -260,6 +276,7 @@ function HowItWorks() {
                 <div className="w-11 h-11 rounded-xl bg-blue-900 flex items-center justify-center shadow-sm shadow-blue-300">
                   <step.icon className="w-5 h-5 text-white" />
                 </div>
+
                 <span
                   className="text-4xl font-extrabold text-blue-100 select-none"
                   style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
@@ -267,12 +284,14 @@ function HowItWorks() {
                   {step.number}
                 </span>
               </div>
+
               <h3
                 className="text-lg font-bold text-gray-900"
                 style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
               >
                 {step.title}
               </h3>
+
               <p
                 className="text-sm text-gray-500 leading-relaxed"
                 style={{ fontFamily: "'Inter', sans-serif" }}
@@ -336,12 +355,14 @@ function Features() {
           >
             Platform Features
           </p>
+
           <h2
             className="text-4xl md:text-5xl font-extrabold tracking-tight text-gray-900"
             style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
           >
             Everything you need to grow
           </h2>
+
           <p
             className="text-gray-500 mt-4 max-w-xl mx-auto text-lg"
             style={{ fontFamily: "'Inter', sans-serif" }}
@@ -358,21 +379,21 @@ function Features() {
                 i === 4 ? "md:col-span-2 lg:col-span-1" : ""
               }`}
             >
-              <div
-                className={`w-12 h-12 rounded-xl ${f.bg} flex items-center justify-center`}
-              >
+              <div className={`w-12 h-12 rounded-xl ${f.bg} flex items-center justify-center`}>
                 <div
                   className={`w-8 h-8 rounded-lg bg-gradient-to-br ${f.color} flex items-center justify-center`}
                 >
                   <f.icon className="w-4 h-4 text-white" />
                 </div>
               </div>
+
               <h3
                 className="text-lg font-bold text-gray-900"
                 style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
               >
                 {f.title}
               </h3>
+
               <p
                 className="text-sm text-gray-500 leading-relaxed"
                 style={{ fontFamily: "'Inter', sans-serif" }}
@@ -399,12 +420,14 @@ function RecommendationCard() {
             >
               Illustrative Example
             </p>
+
             <h2
               className="text-4xl md:text-5xl font-extrabold tracking-tight text-gray-900 mb-5"
               style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
             >
               See how a recommendation is explained
             </h2>
+
             <p
               className="text-gray-500 text-lg leading-relaxed mb-8"
               style={{ fontFamily: "'Inter', sans-serif" }}
@@ -412,6 +435,7 @@ function RecommendationCard() {
               Skill+ explains every recommendation in plain language — no black boxes. You always
               know exactly why an opportunity was suggested and what to do next.
             </p>
+
             <div className="flex flex-col gap-4">
               {[
                 "Tailored to your exact skill level",
@@ -422,6 +446,7 @@ function RecommendationCard() {
                   <div className="w-5 h-5 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
                     <CheckCircle2 className="w-3.5 h-3.5 text-blue-900" />
                   </div>
+
                   <span
                     className="text-gray-700 text-sm font-medium"
                     style={{ fontFamily: "'Inter', sans-serif" }}
@@ -433,30 +458,32 @@ function RecommendationCard() {
             </div>
           </div>
 
-          {/* The sample card */}
           <div className="relative">
             <div
               className="absolute inset-0 rounded-3xl blur-2xl opacity-20 pointer-events-none"
               style={{ background: "linear-gradient(135deg, #1E3A8A, #1D4ED8)" }}
             />
+
             <div className="relative bg-white border border-blue-100 rounded-2xl shadow-xl shadow-blue-100 overflow-hidden">
-              {/* Card header */}
               <div className="bg-gradient-to-r from-blue-900 to-blue-700 px-6 py-5">
                 <div className="flex items-start justify-between">
                   <div>
                     <span className="text-indigo-200 text-xs font-semibold uppercase tracking-widest">
                       Project Opportunity
                     </span>
+
                     <h3
                       className="text-white text-xl font-bold mt-1"
                       style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
                     >
                       Beginner Web Development Project
                     </h3>
+
                     <p className="text-indigo-200 text-sm mt-1">
                       Personal Portfolio with React · 4–6 weeks · Remote
                     </p>
                   </div>
+
                   <div className="flex flex-col items-center bg-white/20 rounded-xl px-3 py-2 backdrop-blur-sm flex-shrink-0 ml-4">
                     <span className="text-white font-extrabold text-2xl leading-none">92%</span>
                     <span className="text-indigo-200 text-xs font-medium">match</span>
@@ -464,12 +491,11 @@ function RecommendationCard() {
                 </div>
               </div>
 
-              {/* Card body */}
               <div className="px-6 py-5 flex flex-col gap-5">
-                {/* Why this fits */}
                 <div className="bg-blue-50 border border-blue-100 rounded-xl p-4">
                   <div className="flex items-center gap-2 mb-2">
                     <Zap className="w-4 h-4 text-blue-900" />
+
                     <span
                       className="text-blue-800 text-xs font-bold uppercase tracking-wider"
                       style={{ fontFamily: "'Inter', sans-serif" }}
@@ -477,6 +503,7 @@ function RecommendationCard() {
                       Why this fits you
                     </span>
                   </div>
+
                   <p
                     className="text-gray-600 text-sm leading-relaxed"
                     style={{ fontFamily: "'Inter', sans-serif" }}
@@ -487,7 +514,6 @@ function RecommendationCard() {
                   </p>
                 </div>
 
-                {/* Skills */}
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <p
@@ -496,6 +522,7 @@ function RecommendationCard() {
                     >
                       Required skills
                     </p>
+
                     <div className="flex flex-wrap gap-1.5">
                       {["HTML/CSS", "JavaScript", "Git"].map((s) => (
                         <span
@@ -507,6 +534,7 @@ function RecommendationCard() {
                       ))}
                     </div>
                   </div>
+
                   <div>
                     <p
                       className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2"
@@ -514,6 +542,7 @@ function RecommendationCard() {
                     >
                       Missing skills
                     </p>
+
                     <div className="flex flex-wrap gap-1.5">
                       {["React basics", "npm"].map((s) => (
                         <span
@@ -527,7 +556,6 @@ function RecommendationCard() {
                   </div>
                 </div>
 
-                {/* Action */}
                 <button className="w-full text-sm font-semibold text-white bg-blue-900 hover:bg-blue-800 transition-colors rounded-full py-3 flex items-center justify-center gap-2">
                   View Opportunity
                   <ArrowRight className="w-4 h-4" />
@@ -535,7 +563,6 @@ function RecommendationCard() {
               </div>
             </div>
 
-            {/* Floating badge */}
             <div className="absolute -bottom-4 -right-4 bg-white border border-blue-100 shadow-lg rounded-xl px-4 py-3 flex items-center gap-2">
               <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
               <span
@@ -553,13 +580,22 @@ function RecommendationCard() {
 }
 
 const OPPORTUNITY_TYPES = [
-  "Projects", "Internships", "Workshops", "Bootcamps",
-  "Hackathons", "Competitions", "Mentorships", "Research",
+  "Projects",
+  "Internships",
+  "Workshops",
+  "Bootcamps",
+  "Hackathons",
+  "Competitions",
+  "Mentorships",
+  "Research",
 ];
 
 function OpportunityPills() {
   return (
-    <section className="py-14 px-6 border-y border-border overflow-hidden" style={{ background: "#F8FAFF" }}>
+    <section
+      className="py-14 px-6 border-y border-border overflow-hidden"
+      style={{ background: "#F8FAFF" }}
+    >
       <div className="max-w-7xl mx-auto">
         <p
           className="text-center text-sm text-gray-400 font-medium mb-6"
@@ -567,6 +603,7 @@ function OpportunityPills() {
         >
           Opportunities matched across
         </p>
+
         <div className="flex flex-wrap justify-center gap-3">
           {OPPORTUNITY_TYPES.map((type) => (
             <span
@@ -585,6 +622,7 @@ function OpportunityPills() {
 
 function CTA() {
   const navigate = useNavigate();
+
   return (
     <section id="about" className="py-28 px-6 relative overflow-hidden">
       <div
@@ -594,6 +632,7 @@ function CTA() {
             "radial-gradient(ellipse 80% 60% at 50% 50%, rgba(30,58,138,0.12) 0%, transparent 70%)",
         }}
       />
+
       <div className="relative max-w-3xl mx-auto text-center">
         <div className="inline-flex items-center gap-2 bg-blue-50 border border-blue-100 text-blue-700 text-xs font-semibold uppercase tracking-wider px-4 py-2 rounded-full mb-8">
           <Sparkles className="w-3.5 h-3.5" />
@@ -652,6 +691,7 @@ function Footer() {
           <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-blue-900 to-blue-700 flex items-center justify-center">
             <Sparkles className="w-3.5 h-3.5 text-white" />
           </div>
+
           <span
             className="text-white font-extrabold text-lg"
             style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
@@ -659,12 +699,14 @@ function Footer() {
             Skill<span className="text-blue-400">+</span>
           </span>
         </div>
+
         <p
           className="text-sm text-center"
           style={{ fontFamily: "'Inter', sans-serif" }}
         >
           Built for students · Transparent matching · AI-assisted planning · © 2026 Skill+
         </p>
+
         <a
           href="mailto:skillplus.teamm@gmail.com"
           className="inline-flex items-center gap-2 text-sm font-semibold hover:text-white transition-colors"
@@ -738,15 +780,35 @@ export default function App() {
             </LoggedInRedirect>
           }
         />
+
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
-        <Route path="/institution/dashboard" element={<InstitutionDashboardPage />} />
-        <Route path="/institution/opportunities/new" element={<OpportunitySubmissionPage />} />
-        <Route path="/institution/opportunities/review" element={<OpportunityReviewPage />} />
+
+        <Route
+          path="/institution/dashboard"
+          element={<InstitutionDashboardPage />}
+        />
+
+        <Route
+          path="/institution/opportunities/new"
+          element={<OpportunitySubmissionPage />}
+        />
+
+        <Route
+          path="/institution/opportunities/review"
+          element={<OpportunityReviewPage />}
+        />
+
+        <Route
+          path="/dashboard"
+          element={<StudentDashboardPage />}
+        />
+
         <Route path="/profile" element={<ProfilePage />} />
         <Route path="/results" element={<ResultsPage />} />
         <Route path="/recommendations" element={<RecommendationsPage />} />
         <Route path="/roadmap" element={<RoadmapPage />} />
+
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
