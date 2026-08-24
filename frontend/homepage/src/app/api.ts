@@ -17,6 +17,10 @@ import type {
   StudentTasksResponse,
   StudentTaskStatus,
   UserRole,
+  StudentTaskCreate,
+  StudentTaskCreateResponse,
+  TaskPriority,
+  TaskStatus,
 } from "./types";
 
 const API_URL = (
@@ -342,6 +346,59 @@ export function generateStudentRoadmap(
     `/student/${userId}/roadmap`,
     {
       method: "POST",
+    },
+  );
+}
+
+export function createStudentTask(
+  userId: number,
+  task: StudentTaskCreate,
+) {
+  return request<StudentTaskCreateResponse>(
+    `/student/${userId}/tasks`,
+    {
+      method: "POST",
+      body: JSON.stringify(task),
+    },
+  );
+}
+
+export function updateStudentTaskStatus(
+  userId: number,
+  taskId: number,
+  status: TaskStatus,
+) {
+  return request<StudentTaskCreateResponse>(
+    `/student/${userId}/tasks/${taskId}/status`,
+    {
+      method: "PATCH",
+      body: JSON.stringify({ status }),
+    },
+  );
+}
+
+export function updateStudentTaskPriority(
+  userId: number,
+  taskId: number,
+  priority: TaskPriority,
+) {
+  return request<StudentTaskCreateResponse>(
+    `/student/${userId}/tasks/${taskId}/priority`,
+    {
+      method: "PATCH",
+      body: JSON.stringify({ priority }),
+    },
+  );
+}
+
+export function deleteStudentTask(
+  userId: number,
+  taskId: number,
+) {
+  return request<{ message: string }>(
+    `/student/${userId}/tasks/${taskId}`,
+    {
+      method: "DELETE",
     },
   );
 }

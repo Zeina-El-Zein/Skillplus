@@ -177,7 +177,7 @@ export type RoadmapOpportunityMatch = {
   opportunity: RoadmapOpportunity;
   score: number;
   reasons: string[];
-  match_level: 1 | 2 | 3;
+  match_level: number;
 };
 
 export type RoadmapStep = {
@@ -203,6 +203,60 @@ export type RoadmapResponse = {
   roadmap: RoadmapContent;
 };
 
+/* ============================================================
+   STUDENT TASKS
+   ============================================================ */
+
+export type TaskStatus = "todo" | "in_progress" | "done";
+
+export type TaskPriority = "high" | "medium" | "low";
+
+export type TaskSource = "opportunity" | "roadmap";
+
+/*
+  Aliases used by Sara's dashboard/shared API code.
+  They represent the same values as the To-Do system.
+*/
+export type StudentTaskStatus = TaskStatus;
+export type StudentTaskPriority = TaskPriority;
+export type StudentTaskSource = TaskSource;
+
+export type StudentTask = {
+  id: number;
+  student_id: number;
+  title: string;
+  description: string | null;
+  status: TaskStatus;
+  priority: TaskPriority;
+  opportunity_id: number | null;
+  source: TaskSource;
+  created_at: string;
+  updated_at: string;
+  completed_at: string | null;
+};
+
+export type StudentTaskCreate = {
+  title: string;
+  description?: string | null;
+  priority?: TaskPriority;
+  opportunity_id?: number | null;
+  source: TaskSource;
+};
+
+export type StudentTaskCreateResponse = {
+  message: string;
+  task: StudentTask;
+};
+
+export type StudentTasksResponse = {
+  user_id: number;
+  tasks: StudentTask[];
+};
+
+/* ============================================================
+   REANALYSIS
+   ============================================================ */
+
 export type ReanalyzeTrigger =
   | "profile_edit"
   | "manual";
@@ -214,40 +268,4 @@ export type ReanalyzeResponse = {
   roadmap: RoadmapContent;
   trigger: ReanalyzeTrigger;
   updated_at: string;
-};
-
-/* ============================================================
-   STUDENT TASKS
-   ============================================================ */
-
-export type StudentTaskStatus =
-  | "todo"
-  | "in_progress"
-  | "done";
-
-export type StudentTaskPriority =
-  | "high"
-  | "medium"
-  | "low";
-
-export type StudentTaskSource =
-  | "opportunity"
-  | "roadmap";
-
-export type StudentTask = {
-  id: number;
-  title: string;
-  description: string | null;
-  status: StudentTaskStatus;
-  priority: StudentTaskPriority;
-  opportunity_id: number | null;
-  source: StudentTaskSource;
-  created_at: string;
-  updated_at: string;
-  completed_at: string | null;
-};
-
-export type StudentTasksResponse = {
-  user_id: number;
-  tasks: StudentTask[];
 };

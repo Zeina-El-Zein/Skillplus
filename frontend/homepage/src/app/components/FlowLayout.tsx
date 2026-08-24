@@ -1,5 +1,11 @@
 import type { ReactNode } from "react";
-import { Check, LogOut, Sparkles } from "lucide-react";
+import {
+  Check,
+  LayoutDashboard,
+  ListTodo,
+  LogOut,
+  Sparkles,
+} from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router";
 import { clearSession, getUser } from "../storage";
 
@@ -48,7 +54,36 @@ export default function FlowLayout({ children, showSteps = true, wide = false }:
             </span>
           </Link>
 
-          {user && (
+        {user && (
+          <div className="flex items-center gap-5">
+            {user.role === "student" && (
+              <>
+                <Link
+                  to="/dashboard"
+                  className={`inline-flex items-center gap-2 text-sm font-semibold transition-colors ${
+                    location.pathname === "/dashboard"
+                      ? "text-blue-900"
+                      : "text-gray-500 hover:text-blue-800"
+                  }`}
+                >
+                  <LayoutDashboard className="w-4 h-4" />
+                  Dashboard
+                </Link>
+
+                <Link
+                  to="/todo"
+                  className={`inline-flex items-center gap-2 text-sm font-semibold transition-colors ${
+                    location.pathname === "/todo"
+                      ? "text-blue-900"
+                      : "text-gray-500 hover:text-blue-800"
+                  }`}
+                >
+                  <ListTodo className="w-4 h-4" />
+                  To-Do
+                </Link>
+              </>
+            )}
+
             <button
               type="button"
               onClick={logout}
@@ -57,7 +92,8 @@ export default function FlowLayout({ children, showSteps = true, wide = false }:
               <LogOut className="w-4 h-4" />
               Log out
             </button>
-          )}
+          </div>
+        )}
         </div>
       </header>
 
