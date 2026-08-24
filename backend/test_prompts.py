@@ -7,6 +7,7 @@ from prompts import (
     DIFFICULTY_LEVELS,
     CANONICAL_MAJORS,
     ALLOWED_MAJOR_VALUES,
+    TASK_PRIORITIES,
     PromptValidationError,
     build_extraction_prompt,
     build_roadmap_prompt,
@@ -290,45 +291,46 @@ def test_roadmap_prompt_contains_profile_and_recommendations(profile, recommenda
 ROADMAP_MODEL_OUTPUTS = [
     {
         "summary": "Focus on Python fundamentals before applying to coding-heavy roles.",
-        "milestones": [
+        "steps": [
             {"title": "Learn Python basics", "description": "Complete an intro Python course.",
-             "skills_to_learn": ["Python"], "suggested_timeframe": "3 weeks"},
+             "order": 1, "relevant_skill": "Python", "opportunity_category": "Bootcamp",
+             "priority": "high"},
         ],
-        "recommended_next_steps": ["Enroll in an intro Python course"],
     },
     {
         "summary": "Build data manipulation skills to match top data science opportunities.",
-        "milestones": [
+        "steps": [
             {"title": "Learn Pandas", "description": "Practice data wrangling.",
-             "skills_to_learn": ["Pandas"], "suggested_timeframe": "2 weeks"},
+             "order": 1, "relevant_skill": "Pandas", "opportunity_category": "Workshop",
+             "priority": "high"},
             {"title": "Study ML basics", "description": "Cover core ML concepts.",
-             "skills_to_learn": ["ML"], "suggested_timeframe": "4 weeks"},
+             "order": 2, "relevant_skill": "Machine Learning", "opportunity_category": "Bootcamp",
+             "priority": "medium"},
         ],
-        "recommended_next_steps": ["Apply to the Data Science Internship", "Join the Kaggle team"],
     },
     {
         "summary": "You're well-positioned; focus on publishing and networking.",
-        "milestones": [
+        "steps": [
             {"title": "Draft a research note", "description": "Write up preliminary findings.",
-             "skills_to_learn": []},
+             "order": 1, "relevant_skill": "Technical Writing", "opportunity_category": "Research",
+             "priority": "medium"},
         ],
-        "recommended_next_steps": ["Apply to the ML Research Assistant role"],
     },
     {
         "summary": "No strong matches yet -- broaden your search and build foundational skills.",
-        "milestones": [
+        "steps": [
             {"title": "Explore beginner-friendly opportunities", "description": "Cast a wider net.",
-             "skills_to_learn": ["Figma"]},
+             "order": 1, "relevant_skill": "Figma", "opportunity_category": "Workshop",
+             "priority": "low"},
         ],
-        "recommended_next_steps": ["Search for more beginner-friendly opportunities"],
     },
     {
-        "summary": "Lean into your interest in education with hands-on volunteering.",
-        "milestones": [
-            {"title": "Start tutoring", "description": "Apply to the after-school program.",
-             "skills_to_learn": []},
+        "summary": "Lean into your interest in education with hands-on mentorship.",
+        "steps": [
+            {"title": "Start tutoring", "description": "Apply to a peer tutoring program.",
+             "order": 1, "relevant_skill": "Communication", "opportunity_category": "Mentorship",
+             "priority": "medium"},
         ],
-        "recommended_next_steps": ["Apply to the Peer Tutoring Mentorship program"],
     },
 ]
 
@@ -338,16 +340,36 @@ def test_roadmap_validation_accepts_well_formed_output(output):
     raw = json.dumps(output)
     validated = generate_roadmap(raw)
     assert validated["source"] == "ai"
-    assert validated["milestones"]
+    assert validated["steps"]
+    for step in validated["steps"]:
+        assert step["opportunity_category"] in CATEGORIES
+        assert step["priority"] in TASK_PRIORITIES
+        # task_id is never set by the model -- must default to None
+        assert step["task_id"] is None
+
+
+def test_roadmap_validation_sorts_steps_by_order():
+    # steps arrive out of order -- generate_roadmap must sort them
+    out_of_order = {
+        "summary": "x",
+        "steps": [
+            {"title": "Second", "description": "d", "order": 2, "relevant_skill": "SQL",
+             "opportunity_category": "Workshop", "priority": "medium"},
+            {"title": "First", "description": "d", "order": 1, "relevant_skill": "Python",
+             "opportunity_category": "Workshop", "priority": "high"},
+        ],
+    }
+    validated = generate_roadmap(json.dumps(out_of_order))
+    assert [s["title"] for s in validated["steps"]] == ["First", "Second"]
 
 
 # ---------------------------------------------------------------------------
 # Roadmap validation -- rejection cases
 # ---------------------------------------------------------------------------
 
-def test_roadmap_rejects_empty_milestones():
+def test_roadmap_rejects_empty_steps():
     bad = dict(ROADMAP_MODEL_OUTPUTS[0])
-    bad["milestones"] = []
+    bad["steps"] = []
     with pytest.raises(PromptValidationError):
         validate_roadmap(bad)
 
@@ -359,18 +381,74 @@ def test_roadmap_rejects_missing_summary():
         validate_roadmap(bad)
 
 
-def test_roadmap_rejects_milestone_missing_title():
+def test_roadmap_rejects_step_missing_title():
     bad = json.loads(json.dumps(ROADMAP_MODEL_OUTPUTS[0]))
-    del bad["milestones"][0]["title"]
+    del bad["steps"][0]["title"]
     with pytest.raises(PromptValidationError):
         validate_roadmap(bad)
 
 
-def test_roadmap_rejects_non_list_next_steps():
-    bad = dict(ROADMAP_MODEL_OUTPUTS[0])
-    bad["recommended_next_steps"] = "just apply somewhere"
+def test_roadmap_rejects_bad_opportunity_category_enum():
+    bad = json.loads(json.dumps(ROADMAP_MODEL_OUTPUTS[0]))
+    bad["steps"][0]["opportunity_category"] = "Freelance"  # not one of the 8
     with pytest.raises(PromptValidationError):
         validate_roadmap(bad)
+
+
+def test_roadmap_rejects_bad_priority_enum():
+    bad = json.loads(json.dumps(ROADMAP_MODEL_OUTPUTS[0]))
+    bad["steps"][0]["priority"] = "urgent"  # not high/medium/low
+    with pytest.raises(PromptValidationError):
+        validate_roadmap(bad)
+
+
+def test_roadmap_rejects_non_integer_order():
+    bad = json.loads(json.dumps(ROADMAP_MODEL_OUTPUTS[0]))
+    bad["steps"][0]["order"] = "first"
+    with pytest.raises(PromptValidationError):
+        validate_roadmap(bad)
+
+
+def test_roadmap_rejects_duplicate_order_values():
+    bad = {
+        "summary": "x",
+        "steps": [
+            {"title": "A", "description": "d", "order": 1, "relevant_skill": "Python",
+             "opportunity_category": "Workshop", "priority": "high"},
+            {"title": "B", "description": "d", "order": 1, "relevant_skill": "SQL",
+             "opportunity_category": "Workshop", "priority": "low"},
+        ],
+    }
+    with pytest.raises(PromptValidationError):
+        validate_roadmap(bad)
+
+
+def test_roadmap_rejects_hallucinated_opportunity_field():
+    # Gemini must never name a specific opportunity -- any extra field on
+    # a step (e.g. an invented opportunity name/link) is rejected outright
+    # since the step schema has additionalProperties: False.
+    bad = json.loads(json.dumps(ROADMAP_MODEL_OUTPUTS[0]))
+    bad["steps"][0]["opportunity_name"] = "Google STEP Internship"
+    with pytest.raises(PromptValidationError):
+        validate_roadmap(bad)
+
+
+def test_roadmap_rejects_model_set_task_id():
+    # task_id can only be assigned by the backend once a step is linked
+    # to a real student_tasks record -- the model can never set one.
+    bad = json.loads(json.dumps(ROADMAP_MODEL_OUTPUTS[0]))
+    bad["steps"][0]["task_id"] = 42
+    with pytest.raises(PromptValidationError):
+        validate_roadmap(bad)
+
+
+def test_roadmap_allows_null_task_id_from_model():
+    # A model explicitly emitting task_id: null is fine -- it's only a
+    # non-null value that's rejected.
+    ok = json.loads(json.dumps(ROADMAP_MODEL_OUTPUTS[0]))
+    ok["steps"][0]["task_id"] = None
+    validated = validate_roadmap(ok)
+    assert validated["steps"][0]["task_id"] is None
 
 
 def test_roadmap_rejects_invalid_json():
@@ -389,8 +467,11 @@ def test_fallback_roadmap_never_calls_ai_and_matches_schema_shape(profile, recom
     # Must satisfy the same contract as the AI path so callers can treat
     # them interchangeably.
     validated = validate_roadmap({k: v for k, v in result.items() if k != "source"})
-    assert validated["milestones"]
-    assert isinstance(validated["recommended_next_steps"], list)
+    assert validated["steps"]
+    for step in validated["steps"]:
+        assert step["opportunity_category"] in CATEGORIES
+        assert step["priority"] in TASK_PRIORITIES
+        assert step["task_id"] is None
 
 
 def test_fallback_roadmap_targets_missing_skills_only():
@@ -400,23 +481,61 @@ def test_fallback_roadmap_targets_missing_skills_only():
                           "required_skills": ["Python", "SQL", "Pandas"]}, "score": 80}
     ]
     result = fallback_roadmap(profile, recommendations)
-    foundation_skills = result["milestones"][0]["skills_to_learn"]
-    assert "Python" not in foundation_skills  # already known
-    assert "SQL" in foundation_skills
-    assert "Pandas" in foundation_skills
+    foundation_skill = result["steps"][0]["relevant_skill"]
+    # First missing skill (not already known) should anchor the
+    # foundations step -- Python is already known so shouldn't be it.
+    assert foundation_skill != "Python"
+    assert foundation_skill in ("SQL", "Pandas")
+
+
+def test_fallback_roadmap_steps_are_sequentially_ordered():
+    profile = {"level": "Beginner", "current_skills": []}
+    recommendations = [
+        {"opportunity": {"title": "A", "category": "Workshop", "required_skills": ["Git"]}, "score": 80},
+        {"opportunity": {"title": "B", "category": "Internship", "required_skills": ["SQL"]}, "score": 60},
+    ]
+    result = fallback_roadmap(profile, recommendations)
+    orders = [s["order"] for s in result["steps"]]
+    assert orders == list(range(1, len(orders) + 1))
+
+
+def test_fallback_roadmap_priority_ranked_by_recommendation_order():
+    profile = {"level": "Beginner", "current_skills": []}
+    recommendations = [
+        {"opportunity": {"title": "Top", "category": "Internship", "required_skills": []}, "score": 90},
+        {"opportunity": {"title": "Second", "category": "Workshop", "required_skills": []}, "score": 70},
+        {"opportunity": {"title": "Third", "category": "Research", "required_skills": []}, "score": 50},
+    ]
+    result = fallback_roadmap(profile, recommendations)
+    # steps[0] is the foundations step; steps[1:] map to the recommendations
+    rec_steps = result["steps"][1:]
+    assert rec_steps[0]["priority"] == "high"
+    assert rec_steps[1]["priority"] == "medium"
+    assert rec_steps[2]["priority"] == "low"
 
 
 def test_fallback_roadmap_handles_no_recommendations():
     result = fallback_roadmap({"level": "Beginner", "current_skills": []}, [])
     assert result["source"] == "fallback"
-    assert len(result["milestones"]) == 1  # just the foundations milestone
-    assert result["recommended_next_steps"] == [
-        "Keep applying to your top-matched opportunities"
-    ]
+    assert len(result["steps"]) == 1  # just the foundations step
+    assert result["steps"][0]["order"] == 1
 
 
 def test_fallback_roadmap_accepts_raw_opportunity_dicts_not_just_wrapped():
     profile = {"level": "Beginner", "current_skills": []}
     recommendations = [{"title": "Raw Opp", "category": "Workshop", "required_skills": ["Git"]}]
     result = fallback_roadmap(profile, recommendations)
-    assert any("Git" in m["skills_to_learn"] for m in result["milestones"])
+    relevant_skills = [s["relevant_skill"] for s in result["steps"]]
+    assert "Git" in relevant_skills
+
+
+def test_fallback_roadmap_opportunity_category_falls_back_when_invalid():
+    # If an opportunity's category somehow isn't one of the 8 canonical
+    # values, fallback_roadmap must not propagate an invalid enum value
+    # into the roadmap step (it would fail validate_roadmap otherwise).
+    profile = {"level": "Beginner", "current_skills": []}
+    recommendations = [
+        {"opportunity": {"title": "Weird", "category": "Freelance", "required_skills": []}, "score": 50}
+    ]
+    result = fallback_roadmap(profile, recommendations)
+    assert result["steps"][1]["opportunity_category"] in CATEGORIES

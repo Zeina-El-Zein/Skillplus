@@ -5,13 +5,30 @@ for the two AI-backed features:
   1. Extraction  — turn a pasted opportunity description into structured
      fields that match scoring.py's contract (see EXTRACTION_SCHEMA).
   2. Roadmap     — turn a student profile + their scored recommendations
-     into a personalized roadmap (see ROADMAP_SCHEMA).
+     into a personalized, ordered step-by-step roadmap (see
+     ROADMAP_SCHEMA). Steps are structured (not paragraph text) so the
+     frontend can render them as a visual timeline.
 
 Both prompts demand strict JSON and nothing else. Nothing here trusts the
 model: every response is parsed and validated against the schema before
 it's allowed to touch the rest of the app. If validation fails, or the AI
 call fails/is disabled, `fallback_roadmap()` produces a roadmap with no AI
 call at all (rules-based: level + missing skills + top recommendations).
+
+ROADMAP STEPS AND OPPORTUNITIES: Gemini suggests a `relevant_skill` and
+`opportunity_category` per step -- it never invents or names a specific
+opportunity. Matching a step to real opportunity rows is done afterward
+by the existing recommendation logic (scoring.py), querying the database
+for opportunities whose category/skills line up with the step. This
+keeps "real opportunities only" enforced structurally, not just by
+prompt instruction.
+
+ROADMAP STEPS AND STUDENT TASKS: a step has no `status` field of its own
+-- per team agreement (see #36 dependencies), progress lives only on the
+linked `student_tasks` record, using that system's shared status values
+(todo / in_progress / done) and priority values (high / medium / low).
+A step's `task_id` is null until the backend links it to a task; Gemini
+never sets task_id, since it can't know a task's ID before one exists.
 
 Note: this module owns the reasoning layer (prompts, schemas, validation,
 fallback). Wiring the actual Gemini client is tracked separately (blocked
@@ -22,7 +39,8 @@ CANONICAL VALUES: DIFFICULTY_LEVELS, CATEGORIES, and CANONICAL_MAJORS below
 are the single source of truth shared with the profile form dropdown and
 backend/seed.sql. Do not add, remove, or rename values here without
 telling the team -- these three lists must stay byte-identical across all
-three places.
+three places. TASK_STATUSES and TASK_PRIORITIES mirror the shared
+student_tasks system (owned by Sara Noun) -- same rule applies.
 """
 
 import json
@@ -62,6 +80,15 @@ CANONICAL_MAJORS = [
 ]
 ALLOWED_MAJOR_VALUES = CANONICAL_MAJORS + ["Any"]
 
+# Shared student_tasks system values (owned by Sara Noun). Roadmap steps
+# reuse these directly -- there is no separate roadmap status/priority
+# system. TASK_STATUSES is not used for validation *within* this module
+# (a roadmap step has no status field), but is kept here as the single
+# documented reference for anything in this file that talks about task
+# status (e.g. future roadmap<->task sync helpers).
+TASK_STATUSES = ["todo", "in_progress", "done"]
+TASK_PRIORITIES = ["high", "medium", "low"]
+
 
 class PromptValidationError(Exception):
     """Raised when AI output fails to parse or violates the schema contract."""
@@ -86,8 +113,6 @@ EXTRACTION_SCHEMA = {
         "difficulty": {"type": "string", "enum": DIFFICULTY_LEVELS},
         "suitable_major": {"type": "string", "enum": ALLOWED_MAJOR_VALUES},
         "suitable_year": {
-            # opportunities.suitable_year is a single INTEGER column, not
-            # an array -- one year, or null if open to any/unspecified.
             "anyOf": [{"type": "integer"}, {"type": "null"}]
         },
         "required_skills": {"type": "array", "items": {"type": "string"}},
@@ -197,7 +222,6 @@ def validate_extraction(data) -> dict:
 
     suitable_year = data.get("suitable_year")
     if suitable_year is not None and not isinstance(suitable_year, int):
-        # opportunities.suitable_year is a single INTEGER column.
         raise PromptValidationError(
             "'suitable_year' must be a single integer or null (not a list)"
         )
@@ -223,7 +247,6 @@ def validate_extraction(data) -> dict:
         if value is not None and not isinstance(value, str):
             raise PromptValidationError(f"'{field}' must be a string or null")
 
-    # Defaults for optional fields not always emitted by the model.
     data.setdefault("suitable_year", None)
     data.setdefault("skills_gained", [])
     data.setdefault("hours_per_week", None)
@@ -237,37 +260,60 @@ def validate_extraction(data) -> dict:
 
 # ---------------------------------------------------------------------------
 # 2. Roadmap prompt + schema
+#
+# Structured, step-based (not paragraph text) so the frontend can render a
+# visual timeline: completed / current / upcoming steps in order. Each
+# step names a skill + opportunity category for the recommendation logic
+# to match against real DB rows -- Gemini never names a specific
+# opportunity. Steps carry no status: progress is tracked entirely via the
+# linked student_tasks record (task_id), once/if a step is turned into a
+# task.
 # ---------------------------------------------------------------------------
 
 ROADMAP_SCHEMA = {
     "type": "object",
-    "required": ["summary", "milestones", "recommended_next_steps"],
+    "required": ["summary", "steps"],
     "properties": {
         "summary": {"type": "string"},
-        "milestones": {
+        "steps": {
             "type": "array",
+            "minItems": 1,
             "items": {
                 "type": "object",
-                "required": ["title", "description", "skills_to_learn"],
+                "required": [
+                    "title",
+                    "description",
+                    "order",
+                    "relevant_skill",
+                    "opportunity_category",
+                    "priority",
+                ],
                 "properties": {
                     "title": {"type": "string"},
                     "description": {"type": "string"},
-                    "skills_to_learn": {"type": "array", "items": {"type": "string"}},
-                    "suggested_timeframe": {"type": "string"},
+                    "order": {"type": "integer"},
+                    "relevant_skill": {"type": "string"},
+                    "opportunity_category": {"type": "string", "enum": CATEGORIES},
+                    "priority": {"type": "string", "enum": TASK_PRIORITIES},
                 },
+                "additionalProperties": False,
             },
         },
-        "recommended_next_steps": {"type": "array", "items": {"type": "string"}},
     },
     "additionalProperties": False,
 }
 
 
 def build_roadmap_prompt(profile: dict, recommendations: list) -> str:
-    """Builds the prompt that generates a personalized roadmap from a
-    student profile and their top scored recommendations. Output must be
-    strict JSON matching ROADMAP_SCHEMA -- no markdown fences, no
-    commentary."""
+    """Builds the prompt that generates a personalized, ordered roadmap
+    from a student profile and their top scored recommendations. Output
+    must be strict JSON matching ROADMAP_SCHEMA -- no markdown fences, no
+    commentary.
+
+    Each step names a relevant_skill + opportunity_category only -- the
+    model is explicitly instructed not to name or invent a specific
+    opportunity. Real opportunity matching happens afterward via
+    scoring.py against the database."""
     top = recommendations[:5]
     rec_summaries = []
     for rec in top:
@@ -284,9 +330,9 @@ def build_roadmap_prompt(profile: dict, recommendations: list) -> str:
             }
         )
 
-    return f"""You are a career/academic advisor. Build a personalized
-roadmap for the student described below, using their profile and their
-top matched opportunities.
+    return f"""You are a career/academic advisor. Build a personalized,
+ordered roadmap for the student described below, using their profile and
+their top matched opportunities.
 
 Respond with STRICT JSON ONLY. No markdown code fences, no preamble, no
 explanation, no trailing text -- the response must start with {{ and end
@@ -295,23 +341,36 @@ with }} and be directly parseable by json.loads().
 Student profile:
 {json.dumps(profile, default=str)}
 
-Top matched opportunities (already scored by our system):
+Top matched opportunities (already scored by our system -- for context on
+the student's current best-fit options, not a list to copy from):
 {json.dumps(rec_summaries, default=str)}
 
 Return an object with exactly these fields:
 - "summary": string, 2-3 sentences summarizing the roadmap's focus.
-- "milestones": a JSON array of milestone objects, each with:
-    - "title": string
-    - "description": string
-    - "skills_to_learn": array of strings (skills to close gaps toward the
-      matched opportunities)
-    - "suggested_timeframe": string (e.g. "2-4 weeks"), optional
-- "recommended_next_steps": array of strings, concrete immediate actions.
+- "steps": a JSON array of step objects, ordered from first to last, each
+  with:
+    - "title": string, short step name.
+    - "description": string, what the student should do in this step and
+      why it matters.
+    - "order": integer, the step's sequential position starting at 1.
+    - "relevant_skill": string, the single skill this step is meant to
+      close a gap in. Must be a real, specific skill (e.g. "SQL", not
+      "technical skills").
+    - "opportunity_category": string, MUST be exactly one of:
+      {CATEGORIES}. This is the category of opportunity this step should
+      lead toward -- NOT the name of a specific opportunity.
+    - "priority": string, MUST be exactly one of: {TASK_PRIORITIES}.
 
-Ground every milestone in the student's actual skill gaps relative to the
-listed opportunities -- do not invent skills that aren't relevant to the
-opportunities or the student's stated career goal. Keep it concise:
-3-5 milestones, 3-6 next steps.
+CRITICAL: Do NOT name, describe, or invent a specific opportunity, course,
+company, or program anywhere in the roadmap. Only suggest a skill and an
+opportunity_category per step. Matching each step to real opportunities is
+handled separately, outside this response -- naming one here would be
+guessing, and specific opportunities can change or expire.
+
+Ground every step in the student's actual skill gaps relative to the
+listed opportunities and their stated career goal -- do not invent skills
+that aren't relevant. Keep it concise: 3-6 steps, ordered from foundational
+to advanced.
 """
 
 
@@ -333,43 +392,81 @@ def validate_roadmap(data) -> dict:
     if not isinstance(data.get("summary"), str) or not data["summary"].strip():
         raise PromptValidationError("'summary' must be a non-empty string")
 
-    milestones = data.get("milestones")
-    if not isinstance(milestones, list) or len(milestones) == 0:
-        raise PromptValidationError("'milestones' must be a non-empty list")
+    steps = data.get("steps")
+    if not isinstance(steps, list) or len(steps) == 0:
+        raise PromptValidationError("'steps' must be a non-empty list")
 
-    for i, m in enumerate(milestones):
-        if not isinstance(m, dict):
-            raise PromptValidationError(f"milestones[{i}] must be an object")
-        for field in ("title", "description", "skills_to_learn"):
-            if field not in m:
+    step_required = (
+        "title",
+        "description",
+        "order",
+        "relevant_skill",
+        "opportunity_category",
+        "priority",
+    )
+    step_allowed_keys = set(step_required) | {"task_id"}
+
+    seen_orders = []
+    for i, step in enumerate(steps):
+        if not isinstance(step, dict):
+            raise PromptValidationError(f"steps[{i}] must be an object")
+
+        for field in step_required:
+            if field not in step:
                 raise PromptValidationError(
-                    f"milestones[{i}] missing required field: {field}"
+                    f"steps[{i}] missing required field: {field}"
                 )
-        if not isinstance(m["title"], str) or not m["title"].strip():
-            raise PromptValidationError(f"milestones[{i}].title must be a non-empty string")
-        if not isinstance(m["description"], str) or not m["description"].strip():
+
+        unknown_step_keys = set(step.keys()) - step_allowed_keys
+        if unknown_step_keys:
             raise PromptValidationError(
-                f"milestones[{i}].description must be a non-empty string"
+                f"steps[{i}] has unexpected field(s): {sorted(unknown_step_keys)}"
             )
-        if not isinstance(m["skills_to_learn"], list) or not all(
-            isinstance(s, str) for s in m["skills_to_learn"]
+
+        if not isinstance(step["title"], str) or not step["title"].strip():
+            raise PromptValidationError(f"steps[{i}].title must be a non-empty string")
+
+        if not isinstance(step["description"], str) or not step["description"].strip():
+            raise PromptValidationError(
+                f"steps[{i}].description must be a non-empty string"
+            )
+
+        if not isinstance(step["order"], int) or isinstance(step["order"], bool):
+            raise PromptValidationError(f"steps[{i}].order must be an integer")
+        seen_orders.append(step["order"])
+
+        if (
+            not isinstance(step["relevant_skill"], str)
+            or not step["relevant_skill"].strip()
         ):
             raise PromptValidationError(
-                f"milestones[{i}].skills_to_learn must be a list of strings"
-            )
-        timeframe = m.get("suggested_timeframe")
-        if timeframe is not None and not isinstance(timeframe, str):
-            raise PromptValidationError(
-                f"milestones[{i}].suggested_timeframe must be a string or absent"
+                f"steps[{i}].relevant_skill must be a non-empty string"
             )
 
-    next_steps = data.get("recommended_next_steps")
-    if not isinstance(next_steps, list) or not all(
-        isinstance(s, str) for s in next_steps
-    ):
-        raise PromptValidationError(
-            "'recommended_next_steps' must be a list of strings"
-        )
+        if step["opportunity_category"] not in CATEGORIES:
+            raise PromptValidationError(
+                f"steps[{i}].opportunity_category must be one of {CATEGORIES}, "
+                f"got {step['opportunity_category']!r}"
+            )
+
+        if step["priority"] not in TASK_PRIORITIES:
+            raise PromptValidationError(
+                f"steps[{i}].priority must be one of {TASK_PRIORITIES}, "
+                f"got {step['priority']!r}"
+            )
+
+        # task_id is never set by the model -- it's added by the backend
+        # once/if a step is linked to a student_tasks record. If somehow
+        # present on inbound AI output, it must be null.
+        if "task_id" in step and step["task_id"] is not None:
+            raise PromptValidationError(
+                f"steps[{i}].task_id must not be set by the model (found "
+                f"{step['task_id']!r}) -- task linking happens after generation"
+            )
+        step.setdefault("task_id", None)
+
+    if len(seen_orders) != len(set(seen_orders)):
+        raise PromptValidationError("'steps' order values must be unique")
 
     return data
 
@@ -406,10 +503,26 @@ def extract_opportunity(raw_ai_response: str) -> dict:
     return validate_extraction(parse_ai_json(raw_ai_response))
 
 
+def _renumber_steps(steps: list) -> list:
+    """Re-numbers an already-sorted step list's `order` field to a clean
+    1..N sequence. validate_roadmap() only enforces that order values are
+    unique, so a model could legally return gappy values like 1, 4, 9 --
+    those pass validation but would render as gaps in a frontend timeline
+    that shows "Step 1, Step 2, Step 3...". Renumbering here, shared by
+    both the AI and fallback paths, guarantees every roadmap the rest of
+    the app sees has a contiguous order starting at 1."""
+    for i, step in enumerate(steps, start=1):
+        step["order"] = i
+    return steps
+
+
 def generate_roadmap(raw_ai_response: str) -> dict:
     """Parses + validates a raw roadmap response. Raises
     PromptValidationError if it doesn't meet the contract."""
     result = validate_roadmap(parse_ai_json(raw_ai_response))
+    result["steps"] = _renumber_steps(
+        sorted(result["steps"], key=lambda s: s["order"])
+    )
     result["source"] = "ai"
     return result
 
@@ -417,7 +530,9 @@ def generate_roadmap(raw_ai_response: str) -> dict:
 # ---------------------------------------------------------------------------
 # Fallback roadmap -- rules-based, no AI call. Built and tested before the
 # AI version so the feature degrades gracefully when the model call fails,
-# returns malformed JSON, or AI is switched off entirely.
+# returns malformed JSON, or AI is switched off entirely. Returns the same
+# step-based shape as generate_roadmap() so the frontend timeline never
+# needs to know which path produced the data.
 # ---------------------------------------------------------------------------
 
 
@@ -432,8 +547,10 @@ def fallback_roadmap(profile: dict, recommendations: list) -> dict:
       - {"opportunity": {...}, "score": int, "reasons": [...]}, or
       - raw opportunity dicts
 
-    Always returns a dict matching the same shape as generate_roadmap(),
-    with "source": "fallback" so callers can tell which path produced it.
+    Always returns a dict matching the same shape as generate_roadmap()
+    (summary + ordered steps), with "source": "fallback" so callers can
+    tell which path produced it. Every step's task_id is None -- linking
+    to a student_tasks record happens later, same as the AI path.
     """
     level = profile.get("level") or "Beginner"
     student_skills = set(profile.get("current_skills") or [])
@@ -449,40 +566,46 @@ def fallback_roadmap(profile: dict, recommendations: list) -> dict:
             if skill not in student_skills and skill not in missing_skills:
                 missing_skills.append(skill)
 
-    milestones = [
+    order = 1
+    steps = [
         {
             "title": f"Strengthen your {level.lower()} foundations",
             "description": (
                 "Review core concepts and close the most common skill gaps "
                 "before applying to your top-matched opportunities."
             ),
-            "skills_to_learn": missing_skills[:3],
-            "suggested_timeframe": "2-4 weeks",
+            "order": order,
+            "relevant_skill": missing_skills[0] if missing_skills else "Fundamentals",
+            "opportunity_category": "Workshop",
+            "priority": "high",
+            "task_id": None,
         }
     ]
 
-    for rec in top_recs:
+    for i, rec in enumerate(top_recs):
+        order += 1
         opp = opp_of(rec)
         title = opp.get("title") or "the opportunity"
-        category = opp.get("category") or "opportunity"
+        category = opp.get("category")
         opp_missing = [
             s for s in (opp.get("required_skills") or []) if s not in student_skills
-        ][:3]
-        milestones.append(
+        ]
+        steps.append(
             {
                 "title": f"Prepare for {title}",
                 "description": (
                     f"Close remaining skill gaps and apply to this "
-                    f"{category} opportunity once ready."
+                    f"{category or 'matched'} opportunity once ready."
                 ),
-                "skills_to_learn": opp_missing,
-                "suggested_timeframe": "Ongoing",
+                "order": order,
+                "relevant_skill": opp_missing[0] if opp_missing else "Application Prep",
+                "opportunity_category": (
+                    category if category in CATEGORIES else "Internship"
+                ),
+                "priority": "high" if i == 0 else ("medium" if i == 1 else "low"),
+                "task_id": None,
             }
         )
-
-    next_steps = [f"Learn {skill}" for skill in missing_skills[:5]]
-    if not next_steps:
-        next_steps = ["Keep applying to your top-matched opportunities"]
 
     return {
         "summary": (
@@ -492,7 +615,6 @@ def fallback_roadmap(profile: dict, recommendations: list) -> dict:
             + ("y" if len(top_recs) == 1 else "ies")
             + "."
         ),
-        "milestones": milestones,
-        "recommended_next_steps": next_steps,
+        "steps": _renumber_steps(steps),
         "source": "fallback",
     }
