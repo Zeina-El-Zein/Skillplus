@@ -5,11 +5,16 @@ import {
   ApiError,
   analyzeStudentProfile,
   getStudentProfile,
+  reanalyzeStudent,
   saveStudentProfile,
   uploadStudentProfilePicture,
 } from "../api";
 import FlowLayout from "../components/FlowLayout";
-import { Field, SelectInput, TextInput } from "../components/FormField";
+import {
+  Field,
+  SelectInput,
+  TextInput,
+} from "../components/FormField";
 import ImageUploadField from "../components/ImageUploadField";
 import PageCard from "../components/PageCard";
 import {
@@ -35,8 +40,12 @@ function profileToForm(profile: StudentProfile | null) {
     skills: listToText(profile?.current_skills || []),
     interests: listToText(profile?.interests || []),
     careerGoal: profile?.career_goal || "",
-    availableTime: String(profile?.available_time_per_week || ""),
-    opportunityType: profile?.preferred_opportunity_type || "Internship",
+    availableTime: String(
+      profile?.available_time_per_week || "",
+    ),
+    opportunityType:
+      profile?.preferred_opportunity_type ||
+      "Internship",
   };
 }
 
@@ -44,22 +53,27 @@ export default function ProfilePage() {
   const navigate = useNavigate();
   const user = getUser();
 
-  const [savedProfile, setSavedProfile] = useState<StudentProfile | null>(() =>
-    getProfile(),
+  const [savedProfile, setSavedProfile] =
+    useState<StudentProfile | null>(() =>
+      getProfile(),
+    );
+
+  const [form, setForm] = useState(() =>
+    profileToForm(savedProfile),
   );
 
-  const [form, setForm] = useState(() => profileToForm(savedProfile));
-
-  const [profilePicture, setProfilePicture] = useState<File | null>(null);
+  const [profilePicture, setProfilePicture] =
+    useState<File | null>(null);
 
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const [loadingExisting, setLoadingExisting] = useState(
-    !savedProfile &&
-      user?.role === "student" &&
-      user.has_profile === true,
-  );
+  const [loadingExisting, setLoadingExisting] =
+    useState(
+      !savedProfile &&
+        user?.role === "student" &&
+        user.has_profile === true,
+    );
 
   useEffect(() => {
     if (
@@ -147,17 +161,23 @@ export default function ProfilePage() {
     }));
   }
 
-  async function handleSubmit(event: FormEvent) {
+  async function handleSubmit(
+    event: FormEvent,
+  ) {
     event.preventDefault();
 
     setError("");
 
     const courses = textToList(form.courses);
     const skills = textToList(form.skills);
-    const interests = textToList(form.interests);
+    const interests = textToList(
+      form.interests,
+    );
 
     const year = Number(form.year);
-    const availableTime = Number(form.availableTime);
+    const availableTime = Number(
+      form.availableTime,
+    );
 
     if (
       !form.major.trim() ||
@@ -169,7 +189,9 @@ export default function ProfilePage() {
       !form.availableTime ||
       !form.opportunityType
     ) {
-      setError("Complete all required fields.");
+      setError(
+        "Complete all required fields.",
+      );
       return;
     }
 
@@ -189,7 +211,9 @@ export default function ProfilePage() {
       year < 1 ||
       year > 5
     ) {
-      setError("Select a valid year of study.");
+      setError(
+        "Select a valid year of study.",
+      );
       return;
     }
 
@@ -211,8 +235,10 @@ export default function ProfilePage() {
       courses_taken: courses,
       current_skills: skills,
       interests,
-      career_goal: form.careerGoal.trim(),
-      available_time_per_week: availableTime,
+      career_goal:
+        form.careerGoal.trim(),
+      available_time_per_week:
+        availableTime,
       preferred_opportunity_type:
         form.opportunityType,
     };
@@ -226,7 +252,8 @@ export default function ProfilePage() {
       await saveStudentProfile(profile);
 
       let profilePictureUrl =
-        savedProfile?.profile_picture_url || null;
+        savedProfile?.profile_picture_url ||
+        null;
 
       if (profilePicture) {
         const upload =
@@ -239,17 +266,46 @@ export default function ProfilePage() {
           upload.profile_picture_url;
       }
 
+      /*
+       * Existing profile:
+       * use the official reanalysis endpoint so the
+       * persisted level, recommendations and roadmap
+       * are rebuilt after the edit.
+       *
+       * New profile:
+       * use the original analysis flow so the student
+       * can continue to the Results page.
+       */
+      if (wasExistingProfile) {
+        await reanalyzeStudent(
+          studentUser.id,
+          "profile_edit",
+        );
+      }
+
+      /*
+       * The current Results page uses AnalysisResult
+       * from storage for strengths, missing skills and
+       * next step. Refresh that display data after both
+       * first-time creation and profile edits.
+       */
       const analysis =
         await analyzeStudentProfile(profile);
 
       const completeProfile = {
         ...profile,
-        profile_picture_url: profilePictureUrl,
+        profile_picture_url:
+          profilePictureUrl,
       };
 
-      setSavedProfile(completeProfile);
+      setSavedProfile(
+        completeProfile,
+      );
 
-      saveProfile(completeProfile);
+      saveProfile(
+        completeProfile,
+      );
+
       saveAnalysis(analysis);
 
       saveUser({
@@ -266,7 +322,9 @@ export default function ProfilePage() {
       setError(
         requestError instanceof Error
           ? requestError.message
-          : "Could not analyze profile.",
+          : wasExistingProfile
+            ? "Could not save and reanalyze profile."
+            : "Could not analyze profile.",
       );
     } finally {
       setLoading(false);
@@ -303,8 +361,12 @@ export default function ProfilePage() {
                 savedProfile?.profile_picture_url
               }
               currentAlt={`${studentUser.name}'s profile picture`}
-              selectedFile={profilePicture}
-              onFileChange={setProfilePicture}
+              selectedFile={
+                profilePicture
+              }
+              onFileChange={
+                setProfilePicture
+              }
               disabled={loading}
               shape="circle"
             />
@@ -328,14 +390,16 @@ export default function ProfilePage() {
                     Select your major
                   </option>
 
-                  {PROFILE_MAJORS.map((major) => (
-                    <option
-                      key={major}
-                      value={major}
-                    >
-                      {major}
-                    </option>
-                  ))}
+                  {PROFILE_MAJORS.map(
+                    (major) => (
+                      <option
+                        key={major}
+                        value={major}
+                      >
+                        {major}
+                      </option>
+                    ),
+                  )}
                 </SelectInput>
               </Field>
 
@@ -358,12 +422,12 @@ export default function ProfilePage() {
                   </option>
 
                   {[1, 2, 3, 4, 5].map(
-                    (year) => (
+                    (yearOption) => (
                       <option
-                        key={year}
-                        value={year}
+                        key={yearOption}
+                        value={yearOption}
                       >
-                        {`Year ${year}`}
+                        {`Year ${yearOption}`}
                       </option>
                     ),
                   )}
@@ -442,7 +506,9 @@ export default function ProfilePage() {
                   type="number"
                   min="1"
                   max="168"
-                  value={form.availableTime}
+                  value={
+                    form.availableTime
+                  }
                   onChange={(event) =>
                     updateField(
                       "availableTime",
@@ -456,7 +522,9 @@ export default function ProfilePage() {
 
               <Field label="Preferred opportunity type">
                 <SelectInput
-                  value={form.opportunityType}
+                  value={
+                    form.opportunityType
+                  }
                   onChange={(event) =>
                     updateField(
                       "opportunityType",

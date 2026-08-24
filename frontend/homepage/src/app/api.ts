@@ -9,6 +9,8 @@ import type {
   ProfilePictureUploadResponse,
   ProfileResponse,
   RecommendationsResponse,
+  ReanalyzeResponse,
+  ReanalyzeTrigger,
   RoadmapResponse,
   StudentProfile,
   StudentProfileResponse,
@@ -35,6 +37,7 @@ async function request<T>(
   options: RequestInit = {},
 ): Promise<T> {
   let response: Response;
+
   const headers = new Headers(options.headers);
 
   if (
@@ -80,35 +83,59 @@ export function signup(
 ) {
   return request<AuthResponse>("/auth/signup", {
     method: "POST",
-    body: JSON.stringify({ name, email, password, role }),
-  });
-}
-
-export function login(email: string, password: string) {
-  return request<AuthResponse>("/auth/login", {
-    method: "POST",
-    body: JSON.stringify({ email, password }),
-  });
-}
-
-export function requestPasswordReset(email: string) {
-  return request<{ message: string }>("/auth/forgot-password", {
-    method: "POST",
-    body: JSON.stringify({ email }),
-  });
-}
-
-export function resetPassword(token: string, newPassword: string) {
-  return request<{ message: string }>("/auth/reset-password", {
-    method: "POST",
     body: JSON.stringify({
-      token,
-      new_password: newPassword,
+      name,
+      email,
+      password,
+      role,
     }),
   });
 }
 
-export function saveStudentProfile(profile: StudentProfile) {
+export function login(
+  email: string,
+  password: string,
+) {
+  return request<AuthResponse>("/auth/login", {
+    method: "POST",
+    body: JSON.stringify({
+      email,
+      password,
+    }),
+  });
+}
+
+export function requestPasswordReset(email: string) {
+  return request<{ message: string }>(
+    "/auth/forgot-password",
+    {
+      method: "POST",
+      body: JSON.stringify({
+        email,
+      }),
+    },
+  );
+}
+
+export function resetPassword(
+  token: string,
+  newPassword: string,
+) {
+  return request<{ message: string }>(
+    "/auth/reset-password",
+    {
+      method: "POST",
+      body: JSON.stringify({
+        token,
+        new_password: newPassword,
+      }),
+    },
+  );
+}
+
+export function saveStudentProfile(
+  profile: StudentProfile,
+) {
   return request<ProfileResponse>("/student-profile", {
     method: "POST",
     body: JSON.stringify(profile),
@@ -117,10 +144,13 @@ export function saveStudentProfile(profile: StudentProfile) {
       error instanceof ApiError &&
       [404, 405].includes(error.status)
     ) {
-      return request<ProfileResponse>("/student/profile", {
-        method: "POST",
-        body: JSON.stringify(profile),
-      });
+      return request<ProfileResponse>(
+        "/student/profile",
+        {
+          method: "POST",
+          body: JSON.stringify(profile),
+        },
+      );
     }
 
     throw error;
@@ -138,6 +168,7 @@ export function uploadStudentProfilePicture(
   file: File,
 ) {
   const body = new FormData();
+
   body.append("file", file);
 
   return request<ProfilePictureUploadResponse>(
@@ -153,18 +184,40 @@ export async function analyzeStudentProfile(
   profile: StudentProfile,
 ) {
   const result = await request<
-    AnalysisResult & { missing_skills?: string[] }
+    AnalysisResult & {
+      missing_skills?: string[];
+    }
   >(`/student/analyze/${profile.user_id}`, {
     method: "POST",
   });
 
   return {
     ...result,
-    missing: result.missing || result.missing_skills || [],
+    missing:
+      result.missing ||
+      result.missing_skills ||
+      [],
   };
 }
 
-export function getStudentRecommendations(userId: number) {
+export function reanalyzeStudent(
+  userId: number,
+  trigger: ReanalyzeTrigger,
+) {
+  return request<ReanalyzeResponse>(
+    `/student/${userId}/reanalyze`,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        trigger,
+      }),
+    },
+  );
+}
+
+export function getStudentRecommendations(
+  userId: number,
+) {
   return request<RecommendationsResponse>(
     `/student/${userId}/recommendations`,
   );
@@ -183,14 +236,19 @@ export function getStudentTasks(
   );
 }
 
-export function getInstitutionProfile(userId: number) {
+export function getInstitutionProfile(
+  userId: number,
+) {
   return request<InstitutionProfile>(
     `/institution/${userId}`,
   );
 }
 
 export function saveInstitutionProfile(
-  profile: Omit<InstitutionProfile, "id" | "logo_url">,
+  profile: Omit<
+    InstitutionProfile,
+    "id" | "logo_url"
+  >,
 ) {
   return request<{
     message: string;
@@ -206,6 +264,7 @@ export function uploadInstitutionLogo(
   file: File,
 ) {
   const body = new FormData();
+
   body.append("file", file);
 
   return request<InstitutionLogoUploadResponse>(
@@ -220,12 +279,19 @@ export function uploadInstitutionLogo(
 export function resolveApiAssetUrl(
   path: string | null | undefined,
 ) {
-  if (!path) return null;
+  if (!path) {
+    return null;
+  }
 
   try {
-    const url = new URL(path, `${API_URL}/`);
+    const url = new URL(
+      path,
+      `${API_URL}/`,
+    );
 
-    return ["http:", "https:"].includes(url.protocol)
+    return ["http:", "https:"].includes(
+      url.protocol,
+    )
       ? url.toString()
       : null;
   } catch {
@@ -261,13 +327,17 @@ export function submitInstitutionOpportunity(
   );
 }
 
-export function getStudentRoadmap(userId: number) {
+export function getStudentRoadmap(
+  userId: number,
+) {
   return request<RoadmapResponse>(
     `/student/${userId}/roadmap`,
   );
 }
 
-export function generateStudentRoadmap(userId: number) {
+export function generateStudentRoadmap(
+  userId: number,
+) {
   return request<RoadmapResponse>(
     `/student/${userId}/roadmap`,
     {
