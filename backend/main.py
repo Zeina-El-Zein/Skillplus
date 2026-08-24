@@ -19,16 +19,18 @@ from authorization import require_institution
 from auth import router as auth_router
 from database import get_db
 from schemas import (
+    ReanalyzeRequest,
     StudentProfile,
     InstitutionProfile,
     OpportunityProcessRequest,
     OpportunitySubmissionRequest,
     TaskCreateRequest,
     TaskStatusUpdateRequest,
-    TaskPriorityUpdateRequest
+    TaskPriorityUpdateRequest,
+    ReanalyzeRequest
 )
 from classification import analyze_profile
-from scoring import score_opportunity
+from scoring import score_opportunity, attach_opportunities_to_roadmap
 
 from ai_client import call_ai
 from prompts import (
@@ -1717,7 +1719,6 @@ def submit_institution_opportunity(
 # FEATURE 4 / ISSUE #38
 # Generate or regenerate a student roadmap
 # ============================================================
-
 @app.post("/student/{user_id}/roadmap")
 def generate_student_roadmap(
     user_id: int,
@@ -1802,12 +1803,6 @@ def generate_student_roadmap(
                 opportunity_dict
             )
 
-            # Mufaro's roadmap functions accept this structure:
-            # {
-            #     "opportunity": {...},
-            #     "score": ...,
-            #     "reasons": [...]
-            # }
             recommendations.append(
                 {
                     "opportunity": opportunity_dict,
@@ -1841,23 +1836,15 @@ def generate_student_roadmap(
                 recommendations
             )
 
-        # Mufaro's functions return source inside the roadmap.
         source = roadmap["source"]
 
-        # The database already has a separate source column,
-        # so only store the actual roadmap content in JSONB.
         roadmap_content = {
             "summary": roadmap["summary"],
-            "milestones": roadmap["milestones"],
-            "recommended_next_steps":
-                roadmap["recommended_next_steps"]
+            "steps": roadmap["steps"]
         }
 
         # Step 5:
         # Save the newly generated roadmap.
-        #
-        # user_id is UNIQUE in roadmaps, so ON CONFLICT updates
-        # the previous cached roadmap when POST is called again.
         db.execute(
             text("""
                 INSERT INTO roadmaps (
@@ -1936,11 +1923,70 @@ def get_cached_student_roadmap(
                 detail="Roadmap not found."
             )
 
+        profile = db.execute(
+            text("""
+                SELECT
+                    id,
+                    user_id,
+                    major,
+                    year_of_study,
+                    courses_taken,
+                    current_skills,
+                    interests,
+                    career_goal,
+                    available_time_per_week,
+                    preferred_opportunity_type,
+                    level
+                FROM students
+                WHERE user_id = :user_id
+            """),
+            {"user_id": user_id}
+        ).mappings().fetchone()
+
+        if profile is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Student profile not found."
+            )
+
+        profile_dict = dict(profile)
+
+        opportunities = db.execute(
+            text("""
+                SELECT
+                    id,
+                    title,
+                    category,
+                    suitable_major,
+                    suitable_year,
+                    difficulty,
+                    required_skills,
+                    skills_gained,
+                    deadline,
+                    estimated_time,
+                    cv_benefit,
+                    link,
+                    hours_per_week
+                FROM opportunities
+                WHERE deadline IS NULL
+                    OR deadline >= CURRENT_DATE
+                ORDER BY id
+            """)
+        ).mappings().all()
+
+        opportunity_dicts = [dict(o) for o in opportunities]
+
+        roadmap_with_opportunities = attach_opportunities_to_roadmap(
+            roadmap["content"],
+            profile_dict,
+            opportunity_dicts
+        )
+
         return {
             "user_id": roadmap["user_id"],
             "source": roadmap["source"],
             "generated_at": roadmap["generated_at"],
-            "roadmap": roadmap["content"]
+            "roadmap": roadmap_with_opportunities
         }
 
     except HTTPException:
@@ -1952,7 +1998,411 @@ def get_cached_student_roadmap(
             detail="Could not retrieve roadmap."
         )
 
+# ============================================================
+# FEATURE 4 / ISSUE #38
+# Link a roadmap step to a real student_tasks record
+# ============================================================
 
+@app.post("/student/{user_id}/roadmap/steps/{order}/create-task")
+def create_task_from_roadmap_step(
+    user_id: int,
+    order: int,
+    db: Session = Depends(get_db)
+):
+    try:
+        # Step 1:
+        # Find the student (student_tasks.student_id references
+        # students.id, not users.id).
+        student = db.execute(
+            text("""
+                SELECT id
+                FROM students
+                WHERE user_id = :user_id
+            """),
+            {"user_id": user_id}
+        ).mappings().fetchone()
+
+        if student is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Student profile not found."
+            )
+
+        student_id = student["id"]
+
+        # Step 2:
+        # Load the cached roadmap. roadmaps.user_id references users.id
+        # directly (unlike student_tasks), so this lookup uses user_id.
+        roadmap_row = db.execute(
+            text("""
+                SELECT content
+                FROM roadmaps
+                WHERE user_id = :user_id
+            """),
+            {"user_id": user_id}
+        ).mappings().fetchone()
+
+        if roadmap_row is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Roadmap not found."
+            )
+
+        roadmap_content = roadmap_row["content"]
+        steps = roadmap_content.get("steps", [])
+
+        # Step 3:
+        # Find the target step by its order value.
+        target_step = None
+        target_index = None
+        for index, step in enumerate(steps):
+            if step.get("order") == order:
+                target_step = step
+                target_index = index
+                break
+
+        if target_step is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Roadmap step not found."
+            )
+
+        # Step 4:
+        # A step can only be linked to one task. If it already has a
+        # task_id, do not silently create a second student_tasks row --
+        # that would orphan the first one and desync progress.
+        if target_step.get("task_id") is not None:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="This roadmap step is already linked to a task."
+            )
+
+        # Step 5:
+        # Create the student_tasks row from the step's fields.opportunity_id is left NULL -- a roadmap-sourced task is not
+        # itself an application to a specific opportunity, it's a
+        # skill-building step. (The unique_student_opportunity
+        # constraint allows multiple NULL opportunity_id rows per
+        # student, since Postgres treats NULLs as distinct for
+        # uniqueness purposes.)
+        created_task = db.execute(
+            text("""
+                INSERT INTO student_tasks (
+                    student_id,
+                    title,
+                    description,
+                    status,
+                    priority,
+                    opportunity_id,
+                    source
+                )
+                VALUES (
+                    :student_id,
+                    :title,
+                    :description,
+                    'todo',
+                    :priority,
+                    NULL,
+                    'roadmap'
+                )
+                RETURNING
+                    id,
+                    student_id,
+                    title,
+                    description,
+                    status,
+                    priority,
+                    opportunity_id,
+                    source,
+                    created_at,
+                    updated_at,
+                    completed_at
+            """),
+            {
+                "student_id": student_id,
+                "title": target_step["title"],
+                "description": target_step.get("description"),
+                "priority": target_step.get("priority", "medium")
+            }
+        ).mappings().fetchone()
+
+        # Step 6:
+        # Write the new task's id back into the step, then save the
+        # whole roadmap content back to the roadmaps table.
+        steps[target_index]["task_id"] = created_task["id"]
+        roadmap_content["steps"] = steps
+
+        db.execute(
+            text("""
+                UPDATE roadmaps
+                SET content = CAST(:content AS JSONB)
+                WHERE user_id = :user_id
+            """),
+            {
+                "content": json.dumps(roadmap_content),
+                "user_id": user_id
+            }
+        )
+
+        db.commit()
+
+        return {
+            "message": "Task created and linked to roadmap step.",
+            "task": dict(created_task),
+            "step": steps[target_index]
+        }
+
+    except HTTPException:
+        db.rollback()
+        raise
+
+    except Exception as e:
+        db.rollback()
+        print("CREATE TASK FROM ROADMAP STEP ERROR:", repr(e))
+
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Could not create task from roadmap step."
+        )
+
+
+@app.post("/student/{user_id}/reanalyze")
+def reanalyze_student(
+    user_id: int,
+    request: ReanalyzeRequest,
+    db: Session = Depends(get_db)
+):
+    try:
+        # Step 1:
+        # Load the current profile (same fields used by analyze/roadmap).
+        profile = db.execute(
+            text("""
+                SELECT
+                    id,
+                    user_id,
+                    major,
+                    year_of_study,
+                    courses_taken,
+                    current_skills,
+                    interests,
+                    career_goal,
+                    available_time_per_week,
+                    preferred_opportunity_type,
+                    level
+                FROM students
+                WHERE user_id = :user_id
+            """),
+            {"user_id": user_id}
+        ).mappings().fetchone()
+ 
+        if profile is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Student profile not found."
+            )
+ 
+        # Step 2:
+        # Re-run level classification against the latest profile fields,
+        # same rules as POST /student/analyze/{user_id}, and persist the
+        # (possibly unchanged) result.
+        courses = len(profile["courses_taken"] or [])
+        skills = len(profile["current_skills"] or [])
+        year = profile["year_of_study"] or 0
+ 
+        classification = analyze_profile(
+            year=year,
+            courses=courses,
+            skills=skills
+        )
+ 
+        db.execute(
+            text("""
+                UPDATE students
+                SET level = :level
+                WHERE user_id = :user_id
+            """),
+            {
+                "level": classification.level,
+                "user_id": user_id
+            }
+        )
+ 
+        profile_dict = dict(profile)
+        profile_dict["level"] = classification.level
+ 
+        # Step 3:
+        # Load active opportunities and score them -- identical to the
+        # roadmap endpoint, so recommendations stay consistent across
+        # both flows.
+        opportunities = db.execute(
+            text("""
+                SELECT
+                    id,
+                    title,
+                    category,
+                    suitable_major,
+                    suitable_year,
+                    difficulty,
+                    required_skills,
+                    skills_gained,
+                    deadline,
+                    estimated_time,
+                    cv_benefit,
+                    link,
+                    hours_per_week
+                FROM opportunities
+                WHERE deadline IS NULL
+                    OR deadline >= CURRENT_DATE
+                ORDER BY id
+            """)
+        ).mappings().all()
+ 
+        opportunity_dicts = [dict(o) for o in opportunities]
+ 
+        recommendations = []
+        for opportunity_dict in opportunity_dicts:
+            match_score, reasons = score_opportunity(
+                profile_dict,
+                opportunity_dict
+            )
+            recommendations.append(
+                {
+                    "opportunity": opportunity_dict,
+                    "score": match_score,
+                    "reasons": reasons
+                }
+            )
+ 
+        recommendations.sort(
+            key=lambda item: item["score"],
+            reverse=True
+        )
+ 
+        # Step 4:
+        # Find which steps of the *existing* cached roadmap (if any)
+        # should be preserved -- those linked to a task that is done.
+        preserved_steps = []
+ 
+        existing_roadmap_row = db.execute(
+            text("""
+                SELECT content
+                FROM roadmaps
+                WHERE user_id = :user_id
+            """),
+            {"user_id": user_id}
+        ).mappings().fetchone()
+ 
+        if existing_roadmap_row is not None:
+            existing_steps = existing_roadmap_row["content"].get("steps", [])
+ 
+            for step in existing_steps:
+                task_id = step.get("task_id")
+                if task_id is None:
+                    continue
+ 
+                linked_task = db.execute(
+                    text("""
+                        SELECT status
+                        FROM student_tasks
+                        WHERE id = :task_id
+                          AND student_id = (
+                              SELECT id FROM students WHERE user_id = :user_id
+                          )
+                    """),
+                    {"task_id": task_id, "user_id": user_id}
+                ).mappings().fetchone()
+ 
+                if linked_task is not None and linked_task["status"] == "done":
+                    preserved_steps.append(step)
+ 
+        # Step 5:
+        # Generate a fresh roadmap the same way POST /roadmap does.
+        try:
+            prompt = build_roadmap_prompt(profile_dict, recommendations)
+            raw_ai_response = call_ai(prompt)
+            new_roadmap = generate_roadmap(raw_ai_response)
+        except Exception:
+            new_roadmap = fallback_roadmap(profile_dict, recommendations)
+ 
+        source = new_roadmap["source"]
+ 
+        # Step 6:
+        # Merge preserved (completed) steps with the freshly generated
+        # ones. Preserved steps come first so completed progress stays
+        # visible at the front of the timeline, then the new steps
+        # follow. Order values are renumbered so the merged list is
+        # always a clean 1..N sequence.
+        merged_steps = preserved_steps + new_roadmap["steps"]
+        for position, step in enumerate(merged_steps, start=1):
+            step["order"] = position
+ 
+        roadmap_content = {
+            "summary": new_roadmap["summary"],
+            "steps": merged_steps
+        }
+ 
+        # Step 7:
+        # Save the merged roadmap as the new cache.
+        saved_roadmap = db.execute(
+            text("""
+                INSERT INTO roadmaps (
+                    user_id,
+                    content,
+                    source,
+                    generated_at
+                )
+                VALUES (
+                    :user_id,
+                    CAST(:content AS JSONB),
+                    :source,
+                    CURRENT_TIMESTAMP
+                )
+                ON CONFLICT (user_id)
+                DO UPDATE SET
+                    content = EXCLUDED.content,
+                    source = EXCLUDED.source,
+                    generated_at = CURRENT_TIMESTAMP
+                RETURNING generated_at
+            """),
+            {
+                "user_id": user_id,
+                "content": json.dumps(roadmap_content),
+                "source": source
+            }
+        ).mappings().fetchone()
+ 
+        db.commit()
+ 
+        # Step 8:
+        # Refresh recommendations/opportunities live in the response,
+        # same as GET /roadmap -- never cached, always computed against
+        # the current opportunity list.
+        roadmap_with_opportunities = attach_opportunities_to_roadmap(
+            roadmap_content,
+            profile_dict,
+            opportunity_dicts
+        )
+ 
+        return {
+            "user_id": user_id,
+            "level": classification.level,
+            "source": source,
+            "roadmap": roadmap_with_opportunities,
+            "trigger": request.trigger,
+            "updated_at": saved_roadmap["generated_at"]
+        }
+ 
+    except HTTPException:
+        db.rollback()
+        raise
+ 
+    except Exception as e:
+        db.rollback()
+        print("REANALYZE ERROR:", repr(e))
+ 
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Could not reanalyze student profile."
+        )
 
 @app.post("/opportunities/{opportunity_id}/view")
 def record_opportunity_view(

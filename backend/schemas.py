@@ -41,7 +41,10 @@ class StudentProfile(BaseModel):
     available_time_per_week: int
     preferred_opportunity_type: str
 
+class ReanalyzeRequest(BaseModel):
+    trigger: Literal["profile_edit", "manual"]
 
+    
 class InstitutionProfile(BaseModel):
     user_id: int
     institution_name: str
