@@ -9,6 +9,7 @@ import {
   Map,
   RefreshCw,
   Sparkles,
+  Target,
 } from "lucide-react";
 import { Link, Navigate } from "react-router";
 import {
@@ -19,17 +20,41 @@ import {
 import FlowLayout from "../components/FlowLayout";
 import PageCard from "../components/PageCard";
 import { getUser } from "../storage";
-import type { RoadmapResponse } from "../types";
+import type {
+  RoadmapOpportunityMatch,
+  RoadmapResponse,
+  RoadmapStep,
+} from "../types";
 
 function formatGeneratedAt(value?: string) {
   if (!value) return null;
+
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
+
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
 
   return date.toLocaleString(undefined, {
     dateStyle: "medium",
     timeStyle: "short",
   });
+}
+
+function formatPriority(priority: RoadmapStep["priority"]) {
+  return priority.charAt(0).toUpperCase() + priority.slice(1);
+}
+
+function getMatchLabel(match: RoadmapOpportunityMatch) {
+  if (match.match_level === 1) {
+    return "Strong step match";
+  }
+
+  if (match.match_level === 2) {
+    return "Related match";
+  }
+
+  return "General recommendation";
 }
 
 function RoadmapGenerationAnimation() {
@@ -48,15 +73,22 @@ function RoadmapGenerationAnimation() {
       <div className="absolute left-8 right-8 top-6 h-1 overflow-hidden rounded-full bg-blue-100">
         <div className="roadmap-progress-line h-full rounded-full bg-blue-700" />
       </div>
+
       {nodes.map(({ Icon, label }, index) => (
-        <div key={label} className="relative z-10 flex flex-col items-center gap-2">
+        <div
+          key={label}
+          className="relative z-10 flex flex-col items-center gap-2"
+        >
           <div
             className="roadmap-progress-node flex h-12 w-12 items-center justify-center rounded-full border-4 border-white bg-blue-900 text-white shadow-md"
             style={{ animationDelay: `${index * 350}ms` }}
           >
             <Icon className="h-5 w-5" />
           </div>
-          <span className="text-xs font-semibold text-blue-900">{label}</span>
+
+          <span className="text-xs font-semibold text-blue-900">
+            {label}
+          </span>
         </div>
       ))}
     </div>
@@ -66,7 +98,10 @@ function RoadmapGenerationAnimation() {
 export default function RoadmapPage() {
   const user = getUser();
   const userId = user?.id;
-  const [result, setResult] = useState<RoadmapResponse | null>(null);
+
+  const [result, setResult] =
+    useState<RoadmapResponse | null>(null);
+
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [missing, setMissing] = useState(false);
@@ -80,22 +115,29 @@ export default function RoadmapPage() {
     }
 
     let active = true;
+
     setLoading(true);
     setError("");
 
     getStudentRoadmap(userId)
       .then((response) => {
         if (!active) return;
+
         setResult(response);
         setMissing(false);
       })
       .catch((requestError) => {
         if (!active) return;
-        if (requestError instanceof ApiError && requestError.status === 404) {
+
+        if (
+          requestError instanceof ApiError &&
+          requestError.status === 404
+        ) {
           setResult(null);
           setMissing(true);
           return;
         }
+
         setError(
           requestError instanceof Error
             ? requestError.message
@@ -103,7 +145,9 @@ export default function RoadmapPage() {
         );
       })
       .finally(() => {
-        if (active) setLoading(false);
+        if (active) {
+          setLoading(false);
+        }
       });
 
     return () => {
@@ -111,17 +155,37 @@ export default function RoadmapPage() {
     };
   }, [reloadNumber, user?.role, userId]);
 
-  if (!user) return <Navigate to="/login" replace />;
-  if (user.role !== "student") return <Navigate to="/institution/dashboard" replace />;
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (user.role !== "student") {
+    return (
+      <Navigate
+        to="/institution/dashboard"
+        replace
+      />
+    );
+  }
+
+  const studentUser = user;
 
   async function generateRoadmap() {
     setGenerating(true);
     setError("");
 
     try {
-      const response = await generateStudentRoadmap(user.id);
-      setResult(response);
-      setMissing(false);
+      await generateStudentRoadmap(
+        studentUser.id,
+      );
+
+      const savedRoadmap =
+        await getStudentRoadmap(
+          studentUser.id,
+        );
+
+        setResult(savedRoadmap);
+        setMissing(false);
     } catch (requestError) {
       setError(
         requestError instanceof Error
@@ -133,7 +197,8 @@ export default function RoadmapPage() {
     }
   }
 
-  const generatedAt = formatGeneratedAt(result?.generated_at);
+  const generatedAt =
+    formatGeneratedAt(result?.generated_at);
 
   return (
     <FlowLayout wide>
@@ -143,34 +208,57 @@ export default function RoadmapPage() {
         description="A practical plan based on your analyzed profile, skill gaps and strongest opportunity matches."
       >
         {loading ? (
-          <div role="status" className="flex flex-col items-center gap-3 py-14 text-blue-900">
+          <div
+            role="status"
+            className="flex flex-col items-center gap-3 py-14 text-blue-900"
+          >
             <Loader2 className="h-8 w-8 animate-spin" />
-            <p className="font-semibold">Checking for your saved roadmap...</p>
+
+            <p className="font-semibold">
+              Checking for your saved roadmap...
+            </p>
           </div>
         ) : generating ? (
-          <div role="status" className="flex flex-col items-center gap-4 py-14 text-center text-blue-900">
+          <div
+            role="status"
+            className="flex flex-col items-center gap-4 py-14 text-center text-blue-900"
+          >
             <RoadmapGenerationAnimation />
+
             <div>
-              <p className="font-bold">Building your roadmap...</p>
+              <p className="font-bold">
+                Building your roadmap...
+              </p>
+
               <p className="mt-2 max-w-md text-sm leading-relaxed text-gray-500">
-                AI generation can take a little longer. If it is unavailable, Skill+ will automatically return a complete rules-based plan.
+                AI generation can take a little longer. If it is unavailable,
+                Skill+ will automatically return a complete rules-based plan.
               </p>
             </div>
           </div>
         ) : error && !result ? (
           <div className="flex flex-col items-center gap-5 py-10 text-center">
-            <p role="alert" className="w-full rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700">
+            <p
+              role="alert"
+              className="w-full rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700"
+            >
               {error}
             </p>
+
             <div className="flex flex-wrap justify-center gap-3">
               <button
                 type="button"
-                onClick={() => setReloadNumber((current) => current + 1)}
+                onClick={() =>
+                  setReloadNumber(
+                    (current) => current + 1,
+                  )
+                }
                 className="inline-flex items-center gap-2 rounded-full border border-blue-200 px-6 py-3 font-semibold text-blue-900 hover:bg-blue-50"
               >
                 <RefreshCw className="h-4 w-4" />
                 Try loading again
               </button>
+
               <button
                 type="button"
                 onClick={generateRoadmap}
@@ -186,17 +274,27 @@ export default function RoadmapPage() {
             <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-50 text-blue-800">
               <Map className="h-8 w-8" />
             </div>
+
             <div>
-              <h2 className="text-2xl font-extrabold text-gray-900">No roadmap generated yet</h2>
+              <h2 className="text-2xl font-extrabold text-gray-900">
+                No roadmap generated yet
+              </h2>
+
               <p className="mx-auto mt-2 max-w-lg text-sm leading-relaxed text-gray-500">
-                Generate a roadmap after your profile has been saved and analyzed. The result is cached so it remains available later.
+                Generate a roadmap after your profile has been saved and
+                analyzed. The result is cached so it remains available later.
               </p>
             </div>
+
             {error && (
-              <p role="alert" className="w-full rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700">
+              <p
+                role="alert"
+                className="w-full rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700"
+              >
                 {error}
               </p>
             )}
+
             <button
               type="button"
               onClick={generateRoadmap}
@@ -222,10 +320,20 @@ export default function RoadmapPage() {
                   ) : (
                     <Sparkles className="h-5 w-5 text-blue-800" />
                   )}
+
                   <div>
-                    <p className={`font-bold ${result.source === "fallback" ? "text-amber-800" : "text-blue-900"}`}>
-                      {result.source === "fallback" ? "Generated offline" : "AI-assisted roadmap"}
+                    <p
+                      className={`font-bold ${
+                        result.source === "fallback"
+                          ? "text-amber-800"
+                          : "text-blue-900"
+                      }`}
+                    >
+                      {result.source === "fallback"
+                        ? "Generated offline"
+                        : "AI-assisted roadmap"}
                     </p>
+
                     <p className="mt-1 text-sm text-gray-600">
                       {result.source === "fallback"
                         ? "AI was unavailable, so Skill+ used its rules-based fallback successfully."
@@ -233,6 +341,7 @@ export default function RoadmapPage() {
                     </p>
                   </div>
                 </div>
+
                 {generatedAt && (
                   <p className="flex items-center gap-2 text-xs font-semibold text-gray-500">
                     <CalendarClock className="h-4 w-4" />
@@ -243,72 +352,166 @@ export default function RoadmapPage() {
             </div>
 
             {error && (
-              <p role="alert" className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700">
+              <p
+                role="alert"
+                className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700"
+              >
                 {error}
               </p>
             )}
 
             <div className="roadmap-reveal rounded-2xl bg-gradient-to-r from-blue-900 to-blue-700 p-6 text-white">
-              <p className="text-xs font-bold uppercase tracking-widest text-blue-100">Plan summary</p>
-              <p className="mt-3 text-base leading-relaxed">{result.roadmap.summary}</p>
+              <p className="text-xs font-bold uppercase tracking-widest text-blue-100">
+                Plan summary
+              </p>
+
+              <p className="mt-3 text-base leading-relaxed">
+                {result.roadmap.summary}
+              </p>
             </div>
 
             <div>
-              <h2 className="text-xl font-extrabold text-gray-900">Milestones</h2>
-              <div className="mt-4 flex flex-col gap-4">
-                {result.roadmap.milestones.map((milestone, index) => (
-                  <article
-                    key={`${milestone.title}-${index}`}
-                    className="roadmap-reveal rounded-2xl border border-blue-100 bg-white p-5 shadow-sm"
-                    style={{ animationDelay: `${Math.min(index, 6) * 100}ms` }}
-                  >
-                    <div className="flex items-start gap-4">
-                      <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-blue-900 text-sm font-extrabold text-white">
-                        {index + 1}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                          <h3 className="text-lg font-extrabold text-gray-900">{milestone.title}</h3>
-                          <span className="w-fit rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-800">
-                            {milestone.suggested_timeframe}
-                          </span>
-                        </div>
-                        <p className="mt-2 text-sm leading-relaxed text-gray-600">{milestone.description}</p>
-                        {milestone.skills_to_learn.length > 0 && (
-                          <div className="mt-4 flex flex-wrap gap-2">
-                            {milestone.skills_to_learn.map((skill) => (
-                              <span key={skill} className="rounded-full border border-blue-100 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-800">
-                                {skill}
-                              </span>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </article>
-                ))}
-              </div>
-            </div>
-
-            <div className="rounded-2xl border border-gray-100 bg-gray-50 p-6">
-              <h2 className="flex items-center gap-2 text-xl font-extrabold text-gray-900">
-                <CheckCircle2 className="h-5 w-5 text-blue-800" />
-                Recommended next steps
+              <h2 className="text-xl font-extrabold text-gray-900">
+                Roadmap steps
               </h2>
-              <ol className="mt-4 space-y-3">
-                {result.roadmap.recommended_next_steps.map((step, index) => (
-                  <li
-                    key={`${step}-${index}`}
-                    className="roadmap-reveal flex items-start gap-3 text-sm text-gray-700"
-                    style={{ animationDelay: `${Math.min(index, 6) * 80}ms` }}
-                  >
-                    <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-blue-100 text-xs font-bold text-blue-900">
-                      {index + 1}
-                    </span>
-                    <span className="pt-0.5">{step}</span>
-                  </li>
-                ))}
-              </ol>
+
+              <p className="mt-1 text-sm text-gray-500">
+                Each step is linked to your shared To-Do system when a task has
+                been created for it.
+              </p>
+
+              <div className="mt-4 flex flex-col gap-5">
+                {result.roadmap.steps.map(
+                  (step, index) => (
+                    <article
+                      key={`${step.order}-${step.title}`}
+                      className="roadmap-reveal rounded-2xl border border-blue-100 bg-white p-5 shadow-sm"
+                      style={{
+                        animationDelay: `${Math.min(index, 6) * 100}ms`,
+                      }}
+                    >
+                      <div className="flex items-start gap-4">
+                        <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-blue-900 text-sm font-extrabold text-white">
+                          {step.order}
+                        </div>
+
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                            <div>
+                              <h3 className="text-lg font-extrabold text-gray-900">
+                                {step.title}
+                              </h3>
+
+                              <p className="mt-2 text-sm leading-relaxed text-gray-600">
+                                {step.description}
+                              </p>
+                            </div>
+
+                            <span className="w-fit rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-800">
+                              {formatPriority(
+                                step.priority,
+                              )}{" "}
+                              priority
+                            </span>
+                          </div>
+
+                          <div className="mt-4 flex flex-wrap gap-2">
+                            {step.relevant_skill && (
+                              <span className="rounded-full border border-blue-100 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-800">
+                                Skill:{" "}
+                                {step.relevant_skill}
+                              </span>
+                            )}
+
+                            {step.opportunity_category && (
+                              <span className="rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-xs font-semibold text-gray-700">
+                                Category:{" "}
+                                {step.opportunity_category}
+                              </span>
+                            )}
+
+                            <span
+                              className={`rounded-full border px-3 py-1 text-xs font-semibold ${
+                                step.task_id
+                                  ? "border-green-200 bg-green-50 text-green-700"
+                                  : "border-gray-200 bg-gray-50 text-gray-500"
+                              }`}
+                            >
+                              {step.task_id
+                                ? "Linked to To-Do"
+                                : "Not added to To-Do"}
+                            </span>
+                          </div>
+
+                          <div className="mt-5">
+                            <h4 className="flex items-center gap-2 text-sm font-bold text-gray-900">
+                              <Target className="h-4 w-4 text-blue-800" />
+                              Relevant opportunities
+                            </h4>
+
+                            {step.opportunities.length > 0 ? (
+                              <div className="mt-3 grid gap-3">
+                                {step.opportunities.map(
+                                  (match) => (
+                                    <div
+                                      key={`${step.order}-${match.opportunity.id}`}
+                                      className="rounded-xl border border-gray-100 bg-gray-50 p-4"
+                                    >
+                                      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                                        <div>
+                                          <p className="font-semibold text-gray-900">
+                                            {match.opportunity.title}
+                                          </p>
+
+                                          <p className="mt-1 text-xs text-gray-500">
+                                            {match.opportunity.category ||
+                                              "Opportunity"}
+                                          </p>
+                                        </div>
+
+                                        <div className="flex flex-wrap gap-2">
+                                          <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-800">
+                                            {match.score}% match
+                                          </span>
+
+                                          <span className="rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-semibold text-gray-600">
+                                            {getMatchLabel(
+                                              match,
+                                            )}
+                                          </span>
+                                        </div>
+                                      </div>
+
+                                      {match.reasons.length > 0 && (
+                                        <ul className="mt-3 space-y-1 text-xs text-gray-600">
+                                          {match.reasons.map(
+                                            (reason, reasonIndex) => (
+                                              <li
+                                                key={`${match.opportunity.id}-${reasonIndex}`}
+                                              >
+                                                • {reason}
+                                              </li>
+                                            ),
+                                          )}
+                                        </ul>
+                                      )}
+                                    </div>
+                                  ),
+                                )}
+                              </div>
+                            ) : (
+                              <p className="mt-3 text-sm text-gray-500">
+                                No matching opportunities are available for
+                                this step right now.
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </article>
+                  ),
+                )}
+              </div>
             </div>
 
             <div className="grid gap-3 sm:grid-cols-2">
@@ -319,6 +522,7 @@ export default function RoadmapPage() {
                 <ArrowLeft className="h-4 w-4" />
                 View matched opportunities
               </Link>
+
               <button
                 type="button"
                 onClick={generateRoadmap}

@@ -97,7 +97,10 @@ export type OpportunityCategory =
   | "Mentorship"
   | "Research";
 
-export type OpportunityDifficulty = "Beginner" | "Intermediate" | "Advanced";
+export type OpportunityDifficulty =
+  | "Beginner"
+  | "Intermediate"
+  | "Advanced";
 
 export type SuitableMajor =
   | "Computer and Communications Engineering"
@@ -140,7 +143,8 @@ export type OpportunitySubmission = Omit<
   suitable_major: SuitableMajor;
 };
 
-export type OpportunityProcessResponse = OpportunityDraftState;
+export type OpportunityProcessResponse =
+  OpportunityDraftState;
 
 export type OpportunitySubmissionResponse = {
   message: string;
@@ -149,17 +153,47 @@ export type OpportunitySubmissionResponse = {
   source: "institution";
 };
 
-export type RoadmapMilestone = {
+/* ============================================================
+   ROADMAP
+   ============================================================ */
+
+export type RoadmapOpportunity = {
+  id: number;
+  title: string;
+  category: string | null;
+  suitable_major: string | null;
+  suitable_year: number | null;
+  difficulty: string | null;
+  required_skills: string[] | null;
+  skills_gained: string[] | null;
+  deadline: string | null;
+  estimated_time: string | null;
+  cv_benefit: string | null;
+  link: string | null;
+  hours_per_week: number | null;
+};
+
+export type RoadmapOpportunityMatch = {
+  opportunity: RoadmapOpportunity;
+  score: number;
+  reasons: string[];
+  match_level: number;
+};
+
+export type RoadmapStep = {
+  order: number;
   title: string;
   description: string;
-  skills_to_learn: string[];
-  suggested_timeframe: string;
+  relevant_skill: string;
+  opportunity_category: string;
+  priority: "high" | "medium" | "low";
+  task_id: number | null;
+  opportunities: RoadmapOpportunityMatch[];
 };
 
 export type RoadmapContent = {
   summary: string;
-  milestones: RoadmapMilestone[];
-  recommended_next_steps: string[];
+  steps: RoadmapStep[];
 };
 
 export type RoadmapResponse = {
@@ -169,11 +203,23 @@ export type RoadmapResponse = {
   roadmap: RoadmapContent;
 };
 
+/* ============================================================
+   STUDENT TASKS
+   ============================================================ */
+
 export type TaskStatus = "todo" | "in_progress" | "done";
 
 export type TaskPriority = "high" | "medium" | "low";
 
 export type TaskSource = "opportunity" | "roadmap";
+
+/*
+  Aliases used by Sara's dashboard/shared API code.
+  They represent the same values as the To-Do system.
+*/
+export type StudentTaskStatus = TaskStatus;
+export type StudentTaskPriority = TaskPriority;
+export type StudentTaskSource = TaskSource;
 
 export type StudentTask = {
   id: number;
@@ -207,34 +253,19 @@ export type StudentTasksResponse = {
   tasks: StudentTask[];
 };
 
-export type ReanalyzeTrigger = "profile_edit" | "manual";
+/* ============================================================
+   REANALYSIS
+   ============================================================ */
 
-export type ReanalyzeOpportunityMatch = {
-  opportunity: Record<string, unknown>;
-  score: number;
-  reasons: string[];
-  match_level: number;
-};
-
-export type ReanalyzeRoadmapStep = {
-  order: number;
-  title: string;
-  description: string;
-  relevant_skill: string;
-  opportunity_category: string;
-  priority: TaskPriority;
-  task_id: number | null;
-  opportunities: ReanalyzeOpportunityMatch[];
-};
+export type ReanalyzeTrigger =
+  | "profile_edit"
+  | "manual";
 
 export type ReanalyzeResponse = {
   user_id: number;
   level: string;
   source: "ai" | "fallback";
-  roadmap: {
-    summary: string;
-    steps: ReanalyzeRoadmapStep[];
-  };
+  roadmap: RoadmapContent;
   trigger: ReanalyzeTrigger;
   updated_at: string;
 };
