@@ -7,7 +7,7 @@ Status: Done
 - Created a responsive sign up page matching the existing Skill+ homepage style.
 - Connected the form to `POST /auth/signup`.
 - Added email, password confirmation and backend error validation.
-- Stores the returned session user and redirects immediately by role: new students go to profile setup and institutions go to their dashboard.
+- Creates the selected account, then returns the user to `/login` with a success message. Signup never authenticates the browser automatically.
 
 ## 5.2 Build Log In Page
 
@@ -15,8 +15,8 @@ Status: Done
 
 - Created the log in page and connected it to `POST /auth/login`.
 - Stores the returned user information so `user_id` is included in the student profile request.
-- Uses the backend's `has_profile` value so returning students go to recommendations while students without a profile go to profile setup.
-- Keeps the local demo session active for up to 14 days and clears expired sessions before protected pages render.
+- Uses the backend's `has_profile` value and the final shared routing contract: returning students go to `/dashboard`, students without a completed profile go to `/profile`, and institutions go to `/institution/dashboard`.
+- Keeps the browser session active for up to 14 days and clears expired sessions before protected pages render.
 - Added invalid-login and unavailable-backend error handling.
 - Added a `Forgot password?` link and a complete reset-request page.
 - Connected the request form to `POST /auth/forgot-password`.
@@ -79,17 +79,17 @@ Status: Done
 - Added the `/reset-password` route, token extraction, password confirmation and full response handling.
 - Matched Member 2's integrated `{ token, new_password }` request contract.
 
-Test result:
+Test result at the Issue #55 handoff:
 
 ```text
 Test Files  1 passed (1)
-Tests       26 passed (26)
+Tests       31 passed (31)
 ```
 
 Build result:
 
 ```text
-1626 modules transformed
+1630 modules transformed
 Build completed successfully
 ```
 
@@ -98,7 +98,7 @@ Build completed successfully
 Status: Done
 
 - Updated signup to send the backend-required `student` or `institution` role.
-- Added role-aware signup/login routing: new students continue to `/profile`, returning students with a profile continue to `/recommendations`, and institutions continue to `/institution/dashboard`.
+- Added role-aware login routing: new students continue to `/profile`, returning students with a profile continue to `/dashboard`, and institutions continue to `/institution/dashboard`.
 - Added student/institution route guards.
 - Added the institution dashboard with institution-profile load, missing-profile, create, edit, loading, error and retry states.
 - Added institution-logo preview, validation, multipart upload and display through `POST /institution/{user_id}/logo`.
@@ -111,7 +111,21 @@ Status: Done
 - Added an animated roadmap-generation sequence and staggered result reveals with reduced-motion accessibility.
 - Removed unsupported homepage statistics and claims, and reserved AI wording for extraction and roadmap generation.
 - Removed non-functional footer links and connected the visible support address to `mailto:skillplus.teamm@gmail.com`.
-- Expanded automated coverage from 19 to 26 tests without regressing earlier Member 5 flows.
+- Expanded automated coverage without regressing earlier Member 5 flows.
+
+## Issue #55 — Global Frontend UX, Navigation and Layout
+
+Status: Done
+
+- Added one reusable logged-in student navigation with Dashboard, Profile, Results, Matches, Roadmap and To-Do links.
+- Made every navigation item clickable, highlighted the current page with `aria-current`, retained logout, and kept Profile available for editing.
+- Added one reusable About/footer component to the public homepage and every flow page, including the project purpose, team name, contact email and copyright.
+- Removed the Demo button, the specified internal profile sentence, other developer-facing copy, unsupported claims and obsolete Privacy/Terms links.
+- Fixed refresh/fresh-login behavior on Results by restoring the saved profile and analysis from the backend when browser-local state is absent.
+- Connected recommendation detail clicks to view tracking and added institution previous-upload, catalog, view-count and To-Do-count displays.
+- Added roadmap-step To-Do actions and made roadmap persistence explicit in the interface.
+- Preserved the merged student Dashboard and To-Do behavior, including current-task prioritization and exact lowercase task status values.
+- Verified 31/31 frontend tests, the production build, Python compilation and 95/95 backend tests.
 
 ## Integration Status
 

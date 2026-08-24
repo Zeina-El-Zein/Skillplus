@@ -1,29 +1,131 @@
-import type { ReactNode } from "react";
-import { ArrowLeft, ArrowRight, Award, CheckCircle2, Lightbulb, Target } from "lucide-react";
+import { useEffect, useState, type ReactNode } from "react";
+import {
+  ArrowLeft,
+  ArrowRight,
+  Award,
+  CheckCircle2,
+  Lightbulb,
+  Loader2,
+  RefreshCw,
+  Target,
+} from "lucide-react";
 import { Navigate, useNavigate } from "react-router";
+import { analyzeStudentProfile, getStudentProfile } from "../api";
 import FlowLayout from "../components/FlowLayout";
 import PageCard from "../components/PageCard";
-import { getAnalysis, getProfile, getUser } from "../storage";
+import {
+  getAnalysis,
+  getProfile,
+  getUser,
+  saveAnalysis,
+  saveProfile,
+} from "../storage";
+import type { AnalysisResult, StudentProfile } from "../types";
 
 export default function ResultsPage() {
   const navigate = useNavigate();
   const user = getUser();
-  const profile = getProfile();
-  const result = getAnalysis();
+  const userId = user?.id;
+  const userRole = user?.role;
+  const [profile, setProfile] = useState<StudentProfile | null>(() => getProfile());
+  const [result, setResult] = useState<AnalysisResult | null>(() => getAnalysis());
+  const [loading, setLoading] = useState(!profile || !result);
+  const [error, setError] = useState("");
+  const [requestNumber, setRequestNumber] = useState(0);
+
+  useEffect(() => {
+    if (!userId || userRole !== "student" || (profile && result)) {
+      setLoading(false);
+      return;
+    }
+
+    let active = true;
+
+    async function restoreResults() {
+      setLoading(true);
+      setError("");
+
+      try {
+        const restoredProfile = profile || await getStudentProfile(userId);
+        const restoredResult = result || await analyzeStudentProfile(restoredProfile);
+
+        if (!active) return;
+
+        saveProfile(restoredProfile);
+        saveAnalysis(restoredResult);
+        setProfile(restoredProfile);
+        setResult(restoredResult);
+      } catch (requestError) {
+        if (!active) return;
+
+        setError(
+          requestError instanceof Error
+            ? requestError.message
+            : "Could not load your profile analysis.",
+        );
+      } finally {
+        if (active) {
+          setLoading(false);
+        }
+      }
+    }
+
+    restoreResults();
+
+    return () => {
+      active = false;
+    };
+  }, [profile, requestNumber, result, userId, userRole]);
 
   if (!user) return <Navigate to="/login" replace />;
   if (user.role === "institution") {
     return <Navigate to="/institution/dashboard" replace />;
   }
-  if (!profile || !result) return <Navigate to="/profile" replace />;
 
   return (
     <FlowLayout>
       <PageCard
-        eyebrow="Step 4 of 6"
+        eyebrow="Profile analysis"
         title="Your analysis is ready"
-        description={`Skill+ analyzed ${profile.courses_taken.length} course(s) and ${profile.current_skills.length} skill(s) for ${user.name}.`}
+        description={
+          profile
+            ? `Skill+ analyzed ${profile.courses_taken.length} course(s) and ${profile.current_skills.length} skill(s) for ${user.name}.`
+            : `Review ${user.name}'s current readiness, strengths and next steps.`
+        }
       >
+        {loading ? (
+          <div role="status" className="flex flex-col items-center gap-3 py-14 text-blue-900">
+            <Loader2 className="h-8 w-8 animate-spin" />
+            <p className="font-semibold">Loading your latest analysis...</p>
+          </div>
+        ) : error || !profile || !result ? (
+          <div className="flex flex-col items-center gap-5 py-10 text-center">
+            <p
+              role="alert"
+              className="w-full rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700"
+            >
+              {error || "Your analysis is not available yet."}
+            </p>
+            <div className="flex flex-wrap justify-center gap-3">
+              <button
+                type="button"
+                onClick={() => setRequestNumber((current) => current + 1)}
+                className="inline-flex items-center gap-2 rounded-full bg-blue-900 px-6 py-3 font-semibold text-white hover:bg-blue-800"
+              >
+                <RefreshCw className="h-4 w-4" />
+                Try again
+              </button>
+              <button
+                type="button"
+                onClick={() => navigate("/profile")}
+                className="inline-flex items-center gap-2 rounded-full border border-blue-200 px-6 py-3 font-semibold text-blue-900 hover:bg-blue-50"
+              >
+                <ArrowLeft className="h-4 w-4" />
+                Update profile
+              </button>
+            </div>
+          </div>
+        ) : (
         <div className="flex flex-col gap-6">
           <div className="rounded-2xl bg-gradient-to-r from-blue-900 to-blue-700 p-6 text-white flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
@@ -106,6 +208,7 @@ export default function ResultsPage() {
             </button>
           </div>
         </div>
+        )}
       </PageCard>
     </FlowLayout>
   );

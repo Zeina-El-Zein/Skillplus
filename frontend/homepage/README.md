@@ -6,7 +6,7 @@ Build and test both complete frontend journeys:
 
 ~~~text
 Student:
-Sign up -> Fill profile -> See analysis -> View ranked recommendations -> Roadmap
+Sign up -> Log in -> Profile or Dashboard -> Results -> Matches -> Roadmap -> To-Do
 
 Institution:
 Sign up -> Institution dashboard/profile -> Paste description -> Edit draft -> Publish
@@ -18,10 +18,12 @@ Sign up -> Institution dashboard/profile -> Paste description -> Edit draft -> P
 - `/login`: Stores the returned user and redirects by role.
 - `/forgot-password`: Requests password reset instructions using `POST /auth/forgot-password`.
 - `/reset-password?token=...`: Changes the password using `POST /auth/reset-password`.
+- `/dashboard`: Shows the returning student's summary and current prioritized tasks.
 - `/profile`: Loads an existing profile when needed, sends the agreed JSON to `POST /student-profile`, and optionally uploads a profile picture.
 - `/results`: Displays level, strengths, missing skills and suggested next step from `POST /student/analyze/{user_id}`.
 - `/recommendations`: Displays ranked opportunity cards from `GET /student/{user_id}/recommendations`.
 - `/roadmap`: Loads the cached roadmap with `GET /student/{user_id}/roadmap` and generates/regenerates it with `POST /student/{user_id}/roadmap`.
+- `/todo`: Displays To-Do, In Progress and Done tasks and supports status, priority, delete and reanalyze actions.
 - `/institution/dashboard`: Loads or creates the institution profile and optionally uploads its logo.
 - `/institution/opportunities/new`: Sends a pasted description to `POST /institution/opportunities/process`.
 - `/institution/opportunities/review`: Shows every extracted field as editable and publishes only the reviewed version through `POST /institution/opportunities`.
@@ -39,15 +41,21 @@ Signup sends the backend-required role:
 }
 ~~~
 
-Signup stores the returned user and redirects immediately. Login uses the backend `has_profile` field:
+Signup creates the account and returns to `/login`; it deliberately does not save an authenticated session. Login uses the backend `has_profile` field and the final routing contract agreed with the dashboard owner:
 
 - new student or student without a profile → `/profile`
-- returning student with a profile → `/recommendations`
+- returning student with a profile → `/dashboard`
 - `institution` → `/institution/dashboard`
 
 Student-only pages redirect institution users to the institution dashboard. Institution-only pages redirect student users to the student profile flow.
 
-The local demo session has a rolling 14-day expiry. Expired or malformed sessions are cleared before protected content is shown.
+The browser session has a rolling 14-day expiry. Expired or malformed sessions are cleared before protected content is shown.
+
+## Global Student Navigation and Footer
+
+Returning students receive one shared navigation bar on every student page. It links Dashboard, Profile, Results, Matches, Roadmap and To-Do, highlights the active page, remains usable on narrow screens, and preserves logout. Profile is always reachable for editing.
+
+One reusable About/footer component is shared by the homepage and flow pages. It identifies Skill+, explains the platform purpose, names the Skill+ Project Team, links `skillplus.teamm@gmail.com`, and contains the copyright notice.
 
 ## Image Uploads
 
@@ -57,7 +65,7 @@ The shared picker accepts JPG, PNG and WEBP images up to 5 MB, previews a valid 
 
 ## Institution Opportunity Flow
 
-The institution dashboard loads `GET /institution/{user_id}`. If the profile does not exist, it creates one through `POST /institution-profile`.
+The institution dashboard loads `GET /institution/{user_id}`. If the profile does not exist, it creates one through `POST /institution-profile`. It also loads the institution's previous uploads from `GET /institution/{user_id}/opportunities` and the shared catalog from `GET /institution/{user_id}/opportunities/all`, including the backend's view and To-Do counts.
 
 The submission page sends `{ user_id, description }` to `POST /institution/opportunities/process`. That endpoint never saves. Its draft is stored locally so the review page survives a refresh.
 
@@ -69,7 +77,7 @@ When AI extraction is unavailable, the backend returns an editable fallback draf
 
 The roadmap page first requests the cached roadmap. A `404` becomes a clear empty state rather than an error. Generate/regenerate sends a bodyless `POST` request.
 
-The page displays the summary, ordered milestones, skills to learn, suggested timeframes, recommended next steps, cached generation time, and the honest source label: `AI-assisted roadmap` or `Generated offline`.
+The page displays the summary, ordered connected milestones, skills to learn, suggested timeframes, recommended next steps, cached generation time, and the honest source label: `AI-assisted roadmap` or `Generated offline`. Generated content is visibly marked as saved, and a student can add each roadmap step to To-Do through `POST /student/{user_id}/roadmap/steps/{step_order}/create-task`.
 
 Loading, missing, backend-error, retry and fallback states are all implemented. Generation uses an animated profile-to-plan sequence, and saved results reveal progressively. All added motion is disabled when the operating system requests reduced motion.
 
@@ -77,7 +85,7 @@ Loading, missing, backend-error, retry and fallback states are all implemented. 
 
 Unsupported claims such as `2,400+ students matched`, `95% fit accuracy`, and matching against `thousands` of opportunities were removed. The homepage now distinguishes transparent rule-based analysis/scoring from the two real AI-assisted features: opportunity extraction and roadmap generation.
 
-The non-functional Privacy and Terms placeholders were removed. The contact footer now opens a real message to `skillplus.teamm@gmail.com`.
+The Demo button, specified internal sentence, non-functional Privacy and Terms placeholders, and other developer-facing copy were removed. The shared contact footer opens a real message to `skillplus.teamm@gmail.com`.
 
 ## Design Feedback Update
 
@@ -231,4 +239,4 @@ npm run test:run
 npm run build
 ```
 
-The automated tests verify both complete role flows; exact role, institution, draft, publish and roadmap requests; editable AI fallback behavior; roadmap cache/generation/errors/retries; role guards; corrected homepage claims; and all earlier recommendation, validation, refresh and password-reset behavior.
+The 31 automated tests verify both complete role flows; explicit login after signup; final Dashboard/Profile routing; the six-link navigation and active state; exact role, institution, draft, publish, task and roadmap requests; institution history and engagement counts; Results restoration after a fresh login; editable AI fallback behavior; roadmap cache/generation/errors/retries; role guards; corrected homepage claims; and all earlier recommendation, validation, refresh and password-reset behavior.

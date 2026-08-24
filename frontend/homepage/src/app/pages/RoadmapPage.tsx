@@ -5,6 +5,7 @@ import {
   Brain,
   CalendarClock,
   CheckCircle2,
+  ListPlus,
   Loader2,
   Map,
   RefreshCw,
@@ -14,6 +15,7 @@ import {
 import { Link, Navigate } from "react-router";
 import {
   ApiError,
+  createRoadmapStepTask,
   generateStudentRoadmap,
   getStudentRoadmap,
 } from "../api";
@@ -42,7 +44,8 @@ function formatGeneratedAt(value?: string) {
 }
 
 function formatPriority(priority: RoadmapStep["priority"]) {
-  return priority.charAt(0).toUpperCase() + priority.slice(1);
+  const safePriority = priority || "medium";
+  return safePriority.charAt(0).toUpperCase() + safePriority.slice(1);
 }
 
 function getMatchLabel(match: RoadmapOpportunityMatch) {
@@ -51,7 +54,11 @@ function getMatchLabel(match: RoadmapOpportunityMatch) {
   }
 
   if (match.match_level === 2) {
-    return "Related match";
+    return "Category match";
+  }
+
+  if (match.match_level === 3) {
+    return "Skill match";
   }
 
   return "General recommendation";
@@ -107,6 +114,9 @@ export default function RoadmapPage() {
   const [missing, setMissing] = useState(false);
   const [error, setError] = useState("");
   const [reloadNumber, setReloadNumber] = useState(0);
+  const [addingStepOrders, setAddingStepOrders] = useState<Set<number>>(
+    new Set(),
+  );
 
   useEffect(() => {
     if (!userId || user?.role !== "student") {
@@ -197,13 +207,56 @@ export default function RoadmapPage() {
     }
   }
 
+  async function addStepToTodo(step: RoadmapStep) {
+    if (step.task_id || addingStepOrders.has(step.order)) {
+      return;
+    }
+
+    setError("");
+    setAddingStepOrders((current) => new Set(current).add(step.order));
+
+    try {
+      const response = await createRoadmapStepTask(studentUser.id, step.order);
+
+      setResult((current) => {
+        if (!current) return current;
+
+        return {
+          ...current,
+          roadmap: {
+            ...current.roadmap,
+            steps: (current.roadmap.steps || []).map((currentStep) =>
+              currentStep.order === step.order ? response.step : currentStep,
+            ),
+          },
+        };
+      });
+    } catch (requestError) {
+      if (requestError instanceof ApiError && requestError.status === 409) {
+        setReloadNumber((current) => current + 1);
+      } else {
+        setError(
+          requestError instanceof Error
+            ? requestError.message
+            : "Could not add this roadmap step to your To-Do list.",
+        );
+      }
+    } finally {
+      setAddingStepOrders((current) => {
+        const next = new Set(current);
+        next.delete(step.order);
+        return next;
+      });
+    }
+  }
+
   const generatedAt =
     formatGeneratedAt(result?.generated_at);
 
   return (
     <FlowLayout wide>
       <PageCard
-        eyebrow="Step 6 of 6"
+        eyebrow="Personal roadmap"
         title="Your student roadmap"
         description="A practical plan based on your analyzed profile, skill gaps and strongest opportunity matches."
       >
@@ -265,7 +318,7 @@ export default function RoadmapPage() {
                 className="inline-flex items-center gap-2 rounded-full bg-blue-900 px-6 py-3 font-semibold text-white hover:bg-blue-800"
               >
                 <Sparkles className="h-4 w-4" />
-                Generate roadmap
+                Generate and save roadmap
               </button>
             </div>
           </div>
@@ -282,7 +335,8 @@ export default function RoadmapPage() {
 
               <p className="mx-auto mt-2 max-w-lg text-sm leading-relaxed text-gray-500">
                 Generate a roadmap after your profile has been saved and
-                analyzed. The result is cached so it remains available later.
+                analyzed. Skill+ saves it to your account automatically so it
+                remains available when you return.
               </p>
             </div>
 
@@ -301,7 +355,7 @@ export default function RoadmapPage() {
               className="inline-flex items-center gap-2 rounded-full bg-blue-900 px-7 py-3.5 font-semibold text-white hover:bg-blue-800"
             >
               <Sparkles className="h-5 w-5" />
-              Generate my roadmap
+              Generate and save my roadmap
             </button>
           </div>
         ) : result ? (
@@ -342,12 +396,18 @@ export default function RoadmapPage() {
                   </div>
                 </div>
 
-                {generatedAt && (
-                  <p className="flex items-center gap-2 text-xs font-semibold text-gray-500">
-                    <CalendarClock className="h-4 w-4" />
-                    {generatedAt}
+                <div className="flex flex-col items-start gap-2 sm:items-end">
+                  <p className="flex items-center gap-2 text-xs font-bold text-green-700">
+                    <CheckCircle2 className="h-4 w-4" />
+                    Saved to your profile
                   </p>
-                )}
+                  {generatedAt && (
+                    <p className="flex items-center gap-2 text-xs font-semibold text-gray-500">
+                      <CalendarClock className="h-4 w-4" />
+                      {generatedAt}
+                    </p>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -366,7 +426,7 @@ export default function RoadmapPage() {
               </p>
 
               <p className="mt-3 text-base leading-relaxed">
-                {result.roadmap.summary}
+                {result.roadmap.summary || "Your personalized roadmap is ready."}
               </p>
             </div>
 
@@ -380,22 +440,27 @@ export default function RoadmapPage() {
                 been created for it.
               </p>
 
-              <div className="mt-4 flex flex-col gap-5">
-                {result.roadmap.steps.map(
+              <div className="relative mt-6 flex flex-col">
+                {(result.roadmap.steps || []).length > 1 && (
+                  <div
+                    aria-hidden="true"
+                    className="absolute bottom-8 left-[18px] top-8 w-1 rounded-full bg-gradient-to-b from-blue-900 via-blue-600 to-blue-200"
+                  />
+                )}
+                {(result.roadmap.steps || []).map(
                   (step, index) => (
                     <article
                       key={`${step.order}-${step.title}`}
-                      className="roadmap-reveal rounded-2xl border border-blue-100 bg-white p-5 shadow-sm"
+                      className="roadmap-reveal relative mb-5 ml-12 rounded-2xl border border-blue-100 bg-white p-5 shadow-sm"
                       style={{
                         animationDelay: `${Math.min(index, 6) * 100}ms`,
                       }}
                     >
-                      <div className="flex items-start gap-4">
-                        <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-blue-900 text-sm font-extrabold text-white">
+                      <div className="absolute -left-[3.15rem] top-5 z-10 flex h-10 w-10 items-center justify-center rounded-full border-4 border-white bg-blue-900 text-sm font-extrabold text-white shadow-md">
                           {step.order}
-                        </div>
+                      </div>
 
-                        <div className="min-w-0 flex-1">
+                      <div className="min-w-0">
                           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                             <div>
                               <h3 className="text-lg font-extrabold text-gray-900">
@@ -441,6 +506,24 @@ export default function RoadmapPage() {
                                 ? "Linked to To-Do"
                                 : "Not added to To-Do"}
                             </span>
+
+                            {!step.task_id && (
+                              <button
+                                type="button"
+                                onClick={() => addStepToTodo(step)}
+                                disabled={addingStepOrders.has(step.order)}
+                                className="inline-flex items-center gap-2 rounded-full border border-blue-200 bg-white px-3 py-1 text-xs font-semibold text-blue-900 hover:bg-blue-50 disabled:opacity-60"
+                              >
+                                {addingStepOrders.has(step.order) ? (
+                                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                ) : (
+                                  <ListPlus className="h-3.5 w-3.5" />
+                                )}
+                                {addingStepOrders.has(step.order)
+                                  ? "Adding..."
+                                  : "Add step to To-Do"}
+                              </button>
+                            )}
                           </div>
 
                           <div className="mt-5">
@@ -449,9 +532,9 @@ export default function RoadmapPage() {
                               Relevant opportunities
                             </h4>
 
-                            {step.opportunities.length > 0 ? (
+                            {(step.opportunities || []).length > 0 ? (
                               <div className="mt-3 grid gap-3">
-                                {step.opportunities.map(
+                                {(step.opportunities || []).map(
                                   (match) => (
                                     <div
                                       key={`${step.order}-${match.opportunity.id}`}
@@ -482,9 +565,9 @@ export default function RoadmapPage() {
                                         </div>
                                       </div>
 
-                                      {match.reasons.length > 0 && (
+                                      {(match.reasons || []).length > 0 && (
                                         <ul className="mt-3 space-y-1 text-xs text-gray-600">
-                                          {match.reasons.map(
+                                          {(match.reasons || []).map(
                                             (reason, reasonIndex) => (
                                               <li
                                                 key={`${match.opportunity.id}-${reasonIndex}`}
@@ -506,7 +589,6 @@ export default function RoadmapPage() {
                               </p>
                             )}
                           </div>
-                        </div>
                       </div>
                     </article>
                   ),
@@ -529,7 +611,7 @@ export default function RoadmapPage() {
                 className="inline-flex items-center justify-center gap-2 rounded-full bg-blue-900 px-6 py-3.5 font-semibold text-white hover:bg-blue-800"
               >
                 <RefreshCw className="h-4 w-4" />
-                Regenerate roadmap
+                Regenerate and save roadmap
               </button>
             </div>
           </div>

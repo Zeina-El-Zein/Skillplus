@@ -8,7 +8,6 @@ import {
   CheckCircle2,
   ArrowRight,
   Star,
-  ChevronRight,
   Brain,
   Sparkles,
   Target,
@@ -16,8 +15,8 @@ import {
   Menu,
   X,
   Building2,
-  Mail,
 } from "lucide-react";
+import SiteFooter from "./components/SiteFooter";
 import ToDoPage from "./pages/ToDoPage";
 import InstitutionDashboardPage from "./pages/InstitutionDashboardPage";
 import LoginPage from "./pages/LoginPage";
@@ -179,7 +178,7 @@ function Hero() {
           skill gaps, and build a practical roadmap.
         </p>
 
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+        <div className="flex items-center justify-center">
           <button
             onClick={() => navigate("/signup")}
             className="inline-flex items-center gap-2 bg-blue-900 hover:bg-blue-800 text-white font-semibold text-base px-7 py-3.5 rounded-full shadow-lg shadow-blue-200 transition-all hover:shadow-blue-300 hover:-translate-y-0.5"
@@ -189,13 +188,6 @@ function Hero() {
             <ArrowRight className="w-4 h-4" />
           </button>
 
-          <button
-            className="inline-flex items-center gap-2 bg-white text-gray-700 font-semibold text-base px-7 py-3.5 rounded-full border border-gray-200 hover:border-blue-300 hover:text-blue-900 transition-all shadow-sm"
-            style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
-          >
-            View Demo
-            <ChevronRight className="w-4 h-4" />
-          </button>
         </div>
 
         <div className="mt-14 flex flex-wrap items-center justify-center gap-6 text-sm text-gray-500">
@@ -341,7 +333,7 @@ const FEATURES = [
     color: "from-blue-600 to-blue-700",
     bg: "bg-blue-50",
     title: "Institution Submissions",
-    desc: "Institution accounts can review structured opportunity fields before publishing them to the shared database.",
+    desc: "Institution accounts can review structured opportunity fields before publishing them to the shared opportunity catalog.",
   },
 ];
 
@@ -684,43 +676,6 @@ function CTA() {
   );
 }
 
-function Footer() {
-  return (
-    <footer className="bg-[#0D1B2A] text-gray-400 px-6 py-12">
-      <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
-        <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-blue-900 to-blue-700 flex items-center justify-center">
-            <Sparkles className="w-3.5 h-3.5 text-white" />
-          </div>
-
-          <span
-            className="text-white font-extrabold text-lg"
-            style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
-          >
-            Skill<span className="text-blue-400">+</span>
-          </span>
-        </div>
-
-        <p
-          className="text-sm text-center"
-          style={{ fontFamily: "'Inter', sans-serif" }}
-        >
-          Built for students · Transparent matching · AI-assisted planning · © 2026 Skill+
-        </p>
-
-        <a
-          href="mailto:skillplus.teamm@gmail.com"
-          className="inline-flex items-center gap-2 text-sm font-semibold hover:text-white transition-colors"
-          aria-label="Email Skill+ support"
-        >
-          <Mail className="h-4 w-4" />
-          skillplus.teamm@gmail.com
-        </a>
-      </div>
-    </footer>
-  );
-}
-
 function HomePage() {
   return (
     <div className="min-h-screen bg-background text-foreground overflow-x-hidden">
@@ -731,7 +686,7 @@ function HomePage() {
       <Features />
       <RecommendationCard />
       <CTA />
-      <Footer />
+      <SiteFooter />
     </div>
   );
 }
