@@ -269,3 +269,123 @@ def filter_active_opportunities(opportunities, today=None):
         elif deadline >= today:
             active.append(opportunity)
     return active
+
+
+# ---------------------------------------------------------------------------
+# Roadmap step -> real opportunity matching.
+#
+# A roadmap step from prompts.py only ever contains a relevant_skill and
+# an opportunity_category -- Gemini never names or invents an actual
+# opportunity. This is the only place a step gets connected to a real
+# opportunity: it filters the (already-active) opportunity list down to
+# ones that are actually relevant to the step, then ranks the matches
+# using the student's normal fit score (score_opportunity) so the
+# opportunities shown are both relevant to the step AND a good fit for
+# this particular student.
+# ---------------------------------------------------------------------------
+
+
+def _step_matches_opportunity(step, opportunity):
+    """True if an opportunity is relevant to a roadmap step -- same
+    category, or the step's target skill appears in what the opportunity
+    requires or teaches. Case-insensitive skill comparison."""
+    category_match = (
+        step.get("opportunity_category")
+        and opportunity.get("category") == step.get("opportunity_category")
+    )
+
+    relevant_skill = step.get("relevant_skill")
+    skill_match = False
+    if relevant_skill:
+        skill_lower = str(relevant_skill).strip().lower()
+        opp_skills = (opportunity.get("required_skills") or []) + (
+            opportunity.get("skills_gained") or []
+        )
+        skill_match = any(
+            skill_lower == str(s).strip().lower() for s in opp_skills
+        )
+
+    return category_match, skill_match
+
+
+def match_opportunities_for_step(step, profile, opportunities, limit=3):
+    """
+    Finds real opportunities from `opportunities` that fit a single
+    roadmap step, ranked by the student's normal fit score.
+
+    Never invents an opportunity -- only returns rows that already exist
+    in `opportunities` (i.e. real DB rows the caller passed in).
+
+    Matching narrows progressively so a step is never left with zero
+    opportunities just because nothing hits the strictest match:
+      1. category AND relevant_skill both match
+      2. category match only
+      3. relevant_skill match only
+      4. no filter -- top overall fits for this student (last resort, so
+         the roadmap always has *something* to show next to a step)
+
+    Returns a list of {"opportunity": ..., "score": ..., "reasons": ...}
+    sorted by score, descending, at most `limit` entries. Each entry also
+    carries "match_level" (1-4) so the frontend can distinguish a
+    strong/direct match from a last-resort suggestion.
+    """
+
+    def score_all(candidates):
+        scored = []
+        for opp in candidates:
+            score, reasons = score_opportunity(profile, opp)
+            scored.append({"opportunity": opp, "score": score, "reasons": reasons})
+        scored.sort(key=lambda r: r["score"], reverse=True)
+        return scored
+
+    both = []
+    category_only = []
+    skill_only = []
+    for opp in opportunities:
+        category_match, skill_match = _step_matches_opportunity(step, opp)
+        if category_match and skill_match:
+            both.append(opp)
+        elif category_match:
+            category_only.append(opp)
+        elif skill_match:
+            skill_only.append(opp)
+
+    for match_level, candidates in (
+        (1, both),
+        (2, category_only),
+        (3, skill_only),
+        (4, opportunities),
+    ):
+        if candidates:
+            results = score_all(candidates)[:limit]
+            for r in results:
+                r["match_level"] = match_level
+            if results:
+                return results
+
+    return []
+
+
+def attach_opportunities_to_roadmap(roadmap, profile, opportunities, limit=3):
+    """
+    Given a roadmap dict (the shape returned by generate_roadmap() /
+    fallback_roadmap() in prompts.py -- {"summary", "steps", "source"}),
+    returns a new roadmap dict where every step also has an
+    "opportunities" key: the real opportunities matched to that step via
+    match_opportunities_for_step().
+
+    Does not mutate the input roadmap. Opportunities should already be
+    filtered to active-only (filter_active_opportunities) before being
+    passed in here.
+    """
+    new_steps = []
+    for step in roadmap.get("steps", []):
+        new_step = dict(step)
+        new_step["opportunities"] = match_opportunities_for_step(
+            step, profile, opportunities, limit=limit
+        )
+        new_steps.append(new_step)
+
+    new_roadmap = dict(roadmap)
+    new_roadmap["steps"] = new_steps
+    return new_roadmap
