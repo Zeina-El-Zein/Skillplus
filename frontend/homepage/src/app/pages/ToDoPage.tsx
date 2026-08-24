@@ -4,7 +4,9 @@ import { Navigate } from "react-router";
 
 import {
   deleteStudentTask,
+  getStudentProfile,
   getStudentTasks,
+  reanalyzeStudent,
   updateStudentTaskPriority,
   updateStudentTaskStatus,
 } from "../api";
@@ -24,6 +26,9 @@ export default function ToDoPage() {
   const [updatingPriorityTaskId, setUpdatingPriorityTaskId] =
     useState<number | null>(null);
   const [deletingTaskId, setDeletingTaskId] = useState<number | null>(null);
+  const [reanalyzing, setReanalyzing] = useState(false);
+  const [reanalyzeMessage, setReanalyzeMessage] = useState("");
+  const [reanalyzeError, setReanalyzeError] = useState("");
   useEffect(() => {
     if (!userId) return;
 
@@ -140,6 +145,34 @@ export default function ToDoPage() {
     setDeletingTaskId(null);
   }
 }
+  async function handleReanalyze() {
+    if (!userId) return;
+
+    setReanalyzing(true);
+    setReanalyzeMessage("");
+    setReanalyzeError("");
+
+    try {
+      const profile = await getStudentProfile(userId);
+
+      await reanalyzeStudent(
+        profile.student_id,
+        "manual",
+      );
+
+      setReanalyzeMessage(
+        "Reanalysis complete. Your level and roadmap have been updated.",
+      );
+    } catch (requestError) {
+      setReanalyzeError(
+        requestError instanceof Error
+          ? requestError.message
+          : "Could not reanalyze your profile.",
+      );
+    } finally {
+      setReanalyzing(false);
+    }
+  }
   if (!user) {
     return <Navigate to="/login" replace />;
   }
@@ -215,6 +248,41 @@ export default function ToDoPage() {
               onDeleteTask={handleDeleteTask}
               deletingTaskId={deletingTaskId}
             />
+            <div className="lg:col-start-3 flex flex-col gap-3">
+              <button
+                type="button"
+                onClick={handleReanalyze}
+                disabled={reanalyzing}
+                className="inline-flex w-full items-center justify-center gap-2 bg-blue-900 hover:bg-blue-800 text-white font-semibold px-5 py-3 rounded-full disabled:opacity-50"
+              >
+                {reanalyzing ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Reanalyzing...
+                  </>
+                ) : (
+                  "Reanalyze My Profile"
+                )}
+              </button>
+
+              {reanalyzeMessage && (
+                <div
+                  role="status"
+                  className="rounded-xl bg-green-50 border border-green-100 px-4 py-3 text-sm text-green-700"
+                >
+                  {reanalyzeMessage}
+                </div>
+              )}
+
+              {reanalyzeError && (
+                <div
+                  role="alert"
+                  className="rounded-xl bg-red-50 border border-red-100 px-4 py-3 text-sm text-red-700"
+                >
+                  {reanalyzeError}
+                </div>
+              )}
+            </div>
           </div>
         )}
       </PageCard>

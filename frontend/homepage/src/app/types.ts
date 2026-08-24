@@ -206,3 +206,33 @@ export type StudentTasksResponse = {
   user_id: number;
   tasks: StudentTask[];
 };
+
+export type ReanalyzeTrigger = "profile_edit" | "manual";
+
+export type ReanalyzeOpportunityMatch = {
+  opportunity_id: number;
+  score: number;
+  reasons: string[];
+  match_level: string;
+};
+
+export type ReanalyzeRoadmapStep = {
+  order: number;
+  title: string;
+  description: string;
+  relevant_skill: string;
+  opportunity_category: string;
+  priority: TaskPriority;
+  task_id: number | null;
+  opportunities: ReanalyzeOpportunityMatch[];
+};
+
+export type ReanalyzeResponse = {
+  level: string;
+  roadmap: {
+    summary: string;
+    source: "ai" | "fallback";
+    steps: ReanalyzeRoadmapStep[];
+  };
+  updated_at: string;
+};

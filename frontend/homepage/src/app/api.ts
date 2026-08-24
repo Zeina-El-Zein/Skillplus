@@ -18,6 +18,8 @@ import type {
   StudentTasksResponse,
   TaskPriority,
   TaskStatus,
+  ReanalyzeResponse,
+  ReanalyzeTrigger,
 } from "./types";
 
 const API_URL = (import.meta.env.VITE_API_URL || "http://localhost:8000").replace(/\/$/, "");
@@ -256,6 +258,19 @@ export function deleteStudentTask(
     `/student/${userId}/tasks/${taskId}`,
     {
       method: "DELETE",
+    },
+  );
+}
+
+export function reanalyzeStudent(
+  studentId: number,
+  trigger: ReanalyzeTrigger = "manual",
+) {
+  return request<ReanalyzeResponse>(
+    `/api/students/${studentId}/reanalyze`,
+    {
+      method: "POST",
+      body: JSON.stringify({ trigger }),
     },
   );
 }
