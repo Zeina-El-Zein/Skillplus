@@ -2,7 +2,6 @@ from datetime import date
 import re
 
 
-# Difficulty ordering
 LEVELS = {
     "Beginner": 0,
     "Intermediate": 1,
@@ -10,7 +9,6 @@ LEVELS = {
 }
 
 
-# Scoring weights
 WEIGHTS = {
     "major": 20,
     "difficulty": 15,
@@ -23,26 +21,9 @@ WEIGHTS = {
 }
 
 
-# Common words that do not provide useful information
 STOP_WORDS = {
-    "a",
-    "an",
-    "and",
-    "are",
-    "be",
-    "become",
-    "for",
-    "from",
-    "in",
-    "into",
-    "of",
-    "on",
-    "or",
-    "the",
-    "to",
-    "with",
-    "work",
-    "working",
+    "a", "an", "and", "are", "be", "become", "for", "from", "in", "into",
+    "of", "on", "or", "the", "to", "with", "work", "working",
 }
 
 
@@ -188,22 +169,6 @@ def _score_career_goal(profile, opportunity):
 
 
 def score_opportunity(profile, opportunity):
-    """
-    Scores an opportunity from 0 to 100.
-
-    Weights:
-        Major: 20
-        Difficulty: 15
-        Skills: 20
-        Interests: 10
-        Opportunity type: 5
-        Suitable year: 10
-        Time compatibility: 10
-        Career goal: 10
-
-    Returns:
-        (score, reasons)
-    """
     score = 0
     reasons = []
 
@@ -269,3 +234,96 @@ def filter_active_opportunities(opportunities, today=None):
         elif deadline >= today:
             active.append(opportunity)
     return active
+
+
+def _step_matches_opportunity(step, opportunity):
+    category_match = (
+        step.get("opportunity_category")
+        and opportunity.get("category") == step.get("opportunity_category")
+    )
+
+    relevant_skill = step.get("relevant_skill")
+    skill_match = False
+    if relevant_skill:
+        skill_lower = str(relevant_skill).strip().lower()
+        opp_skills = (opportunity.get("required_skills") or []) + (
+            opportunity.get("skills_gained") or []
+        )
+        skill_match = any(
+            skill_lower == str(s).strip().lower() for s in opp_skills
+        )
+
+    return category_match, skill_match
+
+
+def match_opportunities_for_step(step, profile, opportunities, limit=3):
+    """
+    Finds real opportunities from `opportunities` that fit a single
+    roadmap step, ranked by the student's normal fit score.
+
+    Matching narrows progressively so a step is never left with zero
+    opportunities just because nothing hits the strictest match:
+      1. category AND relevant_skill both match
+      2. category match OR relevant_skill match (either one alone)
+         -- these are pooled together and ranked purely by fit score,
+         rather than treating "same category label" as a stronger signal
+         than "actually teaches the target skill". A step's
+         relevant_skill is the specific reason the step exists, so an
+         opportunity that teaches that skill shouldn't be buried behind
+         one that merely shares a category but is otherwise irrelevant.
+      3. no filter -- top overall fits for this student (last resort, so
+         the roadmap always has *something* to show next to a step)
+
+    Returns a list of {"opportunity": ..., "score": ..., "reasons": ...}
+    sorted by score, descending, at most `limit` entries. Each entry also
+    carries "match_level" (1-3) so the frontend can distinguish a
+    strong/direct match from a last-resort suggestion -- callers should
+    treat match_level 3 as "no direct match, showing a general
+    recommendation instead" rather than presenting it as equally
+    relevant to levels 1-2.
+    """
+
+    def score_all(candidates):
+        scored = []
+        for opp in candidates:
+            score, reasons = score_opportunity(profile, opp)
+            scored.append({"opportunity": opp, "score": score, "reasons": reasons})
+        scored.sort(key=lambda r: r["score"], reverse=True)
+        return scored
+
+    both = []
+    either = []
+    for opp in opportunities:
+        category_match, skill_match = _step_matches_opportunity(step, opp)
+        if category_match and skill_match:
+            both.append(opp)
+        elif category_match or skill_match:
+            either.append(opp)
+
+    for match_level, candidates in (
+        (1, both),
+        (2, either),
+        (3, opportunities),
+    ):
+        if candidates:
+            results = score_all(candidates)[:limit]
+            for r in results:
+                r["match_level"] = match_level
+            if results:
+                return results
+
+    return []
+
+
+def attach_opportunities_to_roadmap(roadmap, profile, opportunities, limit=3):
+    new_steps = []
+    for step in roadmap.get("steps", []):
+        new_step = dict(step)
+        new_step["opportunities"] = match_opportunities_for_step(
+            step, profile, opportunities, limit=limit
+        )
+        new_steps.append(new_step)
+
+    new_roadmap = dict(roadmap)
+    new_roadmap["steps"] = new_steps
+    return new_roadmap
