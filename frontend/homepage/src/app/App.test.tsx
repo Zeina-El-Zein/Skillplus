@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import App from "./App";
@@ -69,7 +69,7 @@ describe("Member 5 complete student flow", () => {
     window.history.pushState({}, "", "/signup");
   });
 
-  it("completes signup, profile analysis and ranked recommendations", async () => {
+  it("completes signup, explicit login, profile analysis and ranked recommendations", async () => {
     const requests: Array<{ path: string; method: string; body: unknown }> = [];
 
     vi.stubGlobal(
@@ -82,6 +82,14 @@ describe("Member 5 complete student flow", () => {
         if (url.pathname === "/auth/signup") {
           return Response.json({
             message: "User created successfully",
+            user,
+            has_profile: false,
+          });
+        }
+
+        if (url.pathname === "/auth/login") {
+          return Response.json({
+            message: "Login successful",
             user,
             has_profile: false,
           });
@@ -104,6 +112,10 @@ describe("Member 5 complete student flow", () => {
           return Response.json({ user_id: 1, recommendations });
         }
 
+        if (url.pathname === "/student/1/tasks") {
+          return Response.json({ user_id: 1, tasks: [] });
+        }
+
         return Response.json({ detail: "Not found" }, { status: 404 });
       }),
     );
@@ -116,6 +128,14 @@ describe("Member 5 complete student flow", () => {
     await browser.type(screen.getByLabelText(/^Password$/i), "password123");
     await browser.type(screen.getByLabelText(/Confirm password/i), "password123");
     await browser.click(screen.getByRole("button", { name: /Create account/i }));
+
+    expect(
+      await screen.findByRole("heading", { name: /Welcome back/i }),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText(/Email address/i)).toHaveValue(user.email);
+    expect(window.localStorage.getItem("skillplus_user")).toBeNull();
+    await browser.type(screen.getByLabelText(/Password/i), "password123");
+    await browser.click(screen.getByRole("button", { name: /Log in/i }));
 
     expect(await screen.findByRole("heading", { name: /Build your student profile/i })).toBeInTheDocument();
     await browser.selectOptions(
@@ -145,12 +165,14 @@ describe("Member 5 complete student flow", () => {
       screen.getAllByRole("link", { name: /Apply for this opportunity/i })[0],
     ).toHaveAttribute("href", "https://example.com/apply/backend");
 
-    await waitFor(() => expect(requests).toHaveLength(4));
+    await waitFor(() => expect(requests).toHaveLength(6));
     expect(requests.map((request) => request.path)).toEqual([
       "/auth/signup",
+      "/auth/login",
       "/student-profile",
       "/student/analyze/1",
       "/student/1/recommendations",
+      "/student/1/tasks",
     ]);
     expect(requests[0].body).toEqual({
       name: user.name,
@@ -159,6 +181,10 @@ describe("Member 5 complete student flow", () => {
       role: "student",
     });
     expect(requests[1].body).toEqual({
+      email: user.email,
+      password: "password123",
+    });
+    expect(requests[2].body).toEqual({
       user_id: 1,
       major: "Computer and Communications Engineering",
       year_of_study: 3,
@@ -169,8 +195,8 @@ describe("Member 5 complete student flow", () => {
       available_time_per_week: 6,
       preferred_opportunity_type: "Internship",
     });
-    expect(requests[2]).toMatchObject({ method: "POST", body: null });
-    expect(requests[3]).toEqual({
+    expect(requests[3]).toMatchObject({ method: "POST", body: null });
+    expect(requests[4]).toEqual({
       path: "/student/1/recommendations",
       method: "GET",
       body: null,
@@ -208,7 +234,7 @@ describe("Member 5 complete student flow", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
-  it("routes a returning student with a saved profile to recommendations", async () => {
+  it("routes a returning student with a saved profile to the dashboard", async () => {
     window.history.pushState({}, "", "/login");
     const requests: string[] = [];
 
@@ -226,8 +252,29 @@ describe("Member 5 complete student flow", () => {
           });
         }
 
-        if (path === "/student/1/recommendations") {
-          return Response.json({ user_id: 1, recommendations: [] });
+        if (path === "/student/profile/1") {
+          return Response.json({
+            student_id: 4,
+            user_id: 1,
+            major: "Computer Science",
+            year_of_study: 3,
+            courses_taken: ["Data Structures"],
+            current_skills: ["Python"],
+            interests: ["AI"],
+            career_goal: "Software Engineer",
+            available_time_per_week: 8,
+            preferred_opportunity_type: "Internship",
+            level: "Intermediate",
+            profile_picture_url: null,
+          });
+        }
+
+        if (path === "/student/1/tasks") {
+          return Response.json({ user_id: 1, tasks: [] });
+        }
+
+        if (path === "/student/1/roadmap") {
+          return Response.json({ detail: "Roadmap not found." }, { status: 404 });
         }
 
         return Response.json({ detail: "Not found" }, { status: 404 });
@@ -240,8 +287,17 @@ describe("Member 5 complete student flow", () => {
     await browser.type(screen.getByLabelText(/Password/i), "password123");
     await browser.click(screen.getByRole("button", { name: /Log in/i }));
 
-    expect(await screen.findByText("No recommendations yet")).toBeInTheDocument();
-    expect(requests).toEqual(["/auth/login", "/student/1/recommendations"]);
+    expect(
+      await screen.findByRole("heading", { name: /^Dashboard$/i }),
+    ).toBeInTheDocument();
+    await waitFor(() =>
+      expect(requests).toEqual([
+        "/auth/login",
+        "/student/profile/1",
+        "/student/1/tasks",
+        "/student/1/roadmap",
+      ]),
+    );
     expect(JSON.parse(window.localStorage.getItem("skillplus_user") || "{}"))
       .toMatchObject({ id: 1, role: "student", has_profile: true });
   });
@@ -333,7 +389,12 @@ describe("Member 5 complete student flow", () => {
     window.history.pushState({}, "", "/recommendations");
     vi.stubGlobal(
       "fetch",
-      vi.fn(async () => Response.json({ user_id: 1, recommendations: [] })),
+      vi.fn(async (input: RequestInfo | URL) => {
+        const path = new URL(String(input)).pathname;
+        return path.endsWith("/tasks")
+          ? Response.json({ user_id: 1, tasks: [] })
+          : Response.json({ user_id: 1, recommendations: [] });
+      }),
     );
 
     render(<App />);
@@ -348,10 +409,16 @@ describe("Member 5 complete student flow", () => {
   it("shows a recommendation error and retries successfully", async () => {
     storeUser();
     window.history.pushState({}, "", "/recommendations");
-    let attempt = 0;
-    const fetchMock = vi.fn(async () => {
-      attempt += 1;
-      return attempt === 1
+    let recommendationAttempt = 0;
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const path = new URL(String(input)).pathname;
+
+      if (path.endsWith("/tasks")) {
+        return Response.json({ user_id: 1, tasks: [] });
+      }
+
+      recommendationAttempt += 1;
+      return recommendationAttempt === 1
         ? Response.json({ detail: "Recommendations are temporarily unavailable." }, { status: 503 })
         : Response.json({ user_id: 1, recommendations: [recommendations[0]] });
     });
@@ -368,15 +435,18 @@ describe("Member 5 complete student flow", () => {
     expect(
       await screen.findByRole("heading", { name: "Backend Development Internship" }),
     ).toBeInTheDocument();
-    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock).toHaveBeenCalledTimes(4);
   });
 
   it("keeps the logged-in user after a page refresh", async () => {
     storeUser();
     window.history.pushState({}, "", "/recommendations");
-    const fetchMock = vi.fn(async () =>
-      Response.json({ user_id: 1, recommendations: [recommendations[0]] }),
-    );
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const path = new URL(String(input)).pathname;
+      return path.endsWith("/tasks")
+        ? Response.json({ user_id: 1, tasks: [] })
+        : Response.json({ user_id: 1, recommendations: [recommendations[0]] });
+    });
     vi.stubGlobal("fetch", fetchMock);
 
     const firstRender = render(<App />);
@@ -389,7 +459,7 @@ describe("Member 5 complete student flow", () => {
     expect(
       await screen.findByRole("heading", { name: "Backend Development Internship" }),
     ).toBeInTheDocument();
-    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock).toHaveBeenCalledTimes(4);
   });
 
   it("requests password reset instructions from the forgot-password page", async () => {
@@ -552,6 +622,14 @@ describe("Member 5 Issue #40 role-aware frontend", () => {
           });
         }
 
+        if (url.pathname === "/auth/login") {
+          return Response.json({
+            message: "Login successful",
+            user: institutionUser,
+            has_profile: null,
+          });
+        }
+
         if (url.pathname === "/institution/3") {
           return Response.json(
             { detail: "Institution profile not found." },
@@ -564,6 +642,13 @@ describe("Member 5 Issue #40 role-aware frontend", () => {
             message: "Institution profile saved successfully",
             institution_id: 7,
           });
+        }
+
+        if (
+          url.pathname === "/institution/3/opportunities" ||
+          url.pathname === "/institution/3/opportunities/all"
+        ) {
+          return Response.json([]);
         }
 
         if (url.pathname === "/institution/opportunities/process") {
@@ -607,6 +692,12 @@ describe("Member 5 Issue #40 role-aware frontend", () => {
     await browser.type(screen.getByLabelText(/^Password$/i), "password123");
     await browser.type(screen.getByLabelText(/Confirm password/i), "password123");
     await browser.click(screen.getByRole("button", { name: /Create account/i }));
+
+    expect(
+      await screen.findByRole("heading", { name: /Welcome back/i }),
+    ).toBeInTheDocument();
+    await browser.type(screen.getByLabelText(/Password/i), "password123");
+    await browser.click(screen.getByRole("button", { name: /Log in/i }));
 
     expect(
       await screen.findByRole("heading", { name: /Institution dashboard/i }),
@@ -666,31 +757,42 @@ describe("Member 5 Issue #40 role-aware frontend", () => {
     ).toBeInTheDocument();
     expect(screen.getByText(/Opportunity ID: 12/i)).toBeInTheDocument();
 
-    await waitFor(() => expect(requests).toHaveLength(5));
-    expect(requests.map((request) => request.path)).toEqual([
-      "/auth/signup",
-      "/institution/3",
-      "/institution-profile",
-      "/institution/opportunities/process",
-      "/institution/opportunities",
-    ]);
+    const requestPaths = requests.map((request) => request.path);
+    expect(requestPaths).toEqual(
+      expect.arrayContaining([
+        "/auth/signup",
+        "/auth/login",
+        "/institution/3",
+        "/institution-profile",
+        "/institution/3/opportunities",
+        "/institution/3/opportunities/all",
+        "/institution/opportunities/process",
+        "/institution/opportunities",
+      ]),
+    );
     expect(requests[0].body).toEqual({
       name: institutionUser.name,
       email: institutionUser.email,
       password: "password123",
       role: "institution",
     });
-    expect(requests[2].body).toEqual({
+    expect(requests.find((request) => request.path === "/institution-profile")?.body).toEqual({
       user_id: 3,
       institution_name: "AUB Career Office",
       website: "https://www.aub.edu.lb/careerhub",
       description: "Connects students with verified career opportunities.",
     });
-    expect(requests[3].body).toEqual({
+    expect(requests.find((request) => request.path === "/institution/opportunities/process")?.body).toEqual({
       user_id: 3,
       description,
     });
-    expect(requests[4].body).toEqual({
+    expect(
+      requests.find(
+        (request) =>
+          request.path === "/institution/opportunities" &&
+          request.method === "POST",
+      )?.body,
+    ).toEqual({
       user_id: 3,
       title: "Software Engineering Internship",
       category: "Internship",
@@ -770,15 +872,19 @@ describe("Member 5 Issue #40 role-aware frontend", () => {
         roadmap: {
           summary:
             "A rules-based roadmap focused on closing skill gaps and preparing for top matches.",
-          milestones: [
+          steps: [
             {
+              order: 1,
               title: "Strengthen version control skills",
               description: "Practice Git workflows used in team projects.",
-              skills_to_learn: ["Git"],
-              suggested_timeframe: "2-3 weeks",
+              relevant_skill: "Git",
+              opportunity_category: "Project",
+              priority: "high",
+              task_id: null,
+              task_status: null,
+              opportunities: [],
             },
           ],
-          recommended_next_steps: ["Learn Git", "Apply to your strongest match"],
         },
       }),
     );
@@ -790,10 +896,70 @@ describe("Member 5 Issue #40 role-aware frontend", () => {
     expect(
       screen.getByRole("heading", { name: "Strengthen version control skills" }),
     ).toBeInTheDocument();
-    expect(screen.getByText("Learn Git")).toBeInTheDocument();
+    expect(screen.getByText("Skill: Git")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Add step to To-Do/i })).toBeInTheDocument();
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(String(fetchMock.mock.calls[0][0])).toContain("/student/1/roadmap");
     expect(fetchMock.mock.calls[0][1]?.method).toBeUndefined();
+  });
+
+  it("renders roadmap progress from shared task statuses", async () => {
+    storeUser();
+    window.history.pushState({}, "", "/roadmap");
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        Response.json({
+          user_id: 1,
+          source: "ai",
+          roadmap: {
+            summary: "Progress stays synchronized with the To-Do list.",
+            steps: [
+              {
+                order: 1,
+                title: "Complete the first project",
+                description: "Ship the first milestone.",
+                relevant_skill: "Git",
+                opportunity_category: "Project",
+                priority: "high",
+                task_id: 41,
+                task_status: "done",
+                opportunities: [],
+              },
+              {
+                order: 2,
+                title: "Practice the current skill",
+                description: "Continue the active task.",
+                relevant_skill: "SQL",
+                opportunity_category: "Workshop",
+                priority: "medium",
+                task_id: 42,
+                task_status: "in_progress",
+                opportunities: [],
+              },
+              {
+                order: 3,
+                title: "Prepare the next application",
+                description: "Start after the current task.",
+                relevant_skill: "React",
+                opportunity_category: "Internship",
+                priority: "low",
+                task_id: 43,
+                task_status: "todo",
+                opportunities: [],
+              },
+            ],
+          },
+        }),
+      ),
+    );
+
+    render(<App />);
+
+    expect(await screen.findByText("Done")).toBeInTheDocument();
+    expect(screen.getByText("In Progress")).toBeInTheDocument();
+    expect(screen.getByText("To Do")).toBeInTheDocument();
   });
 
   it("generates and displays a roadmap when no cached roadmap exists", async () => {
@@ -818,15 +984,19 @@ describe("Member 5 Issue #40 role-aware frontend", () => {
           source: "fallback",
           roadmap: {
             summary: "A practical fallback roadmap.",
-            milestones: [
+            steps: [
               {
+                order: 1,
                 title: "Build core skills",
                 description: "Practice the skills required by your strongest matches.",
-                skills_to_learn: ["Git"],
-                suggested_timeframe: "2-4 weeks",
+                relevant_skill: "Git",
+                opportunity_category: "Project",
+                priority: "high",
+                task_id: null,
+                task_status: null,
+                opportunities: [],
               },
             ],
-            recommended_next_steps: ["Learn Git"],
           },
         });
       }),
@@ -837,7 +1007,7 @@ describe("Member 5 Issue #40 role-aware frontend", () => {
 
     expect(await screen.findByText("No roadmap generated yet")).toBeInTheDocument();
     await browser.click(
-      screen.getByRole("button", { name: /Generate my roadmap/i }),
+      screen.getByRole("button", { name: /Generate and save my roadmap/i }),
     );
 
     expect(await screen.findByText("Generated offline")).toBeInTheDocument();
@@ -845,6 +1015,7 @@ describe("Member 5 Issue #40 role-aware frontend", () => {
     expect(requests).toEqual([
       { method: "GET", path: "/student/1/roadmap" },
       { method: "POST", path: "/student/1/roadmap" },
+      { method: "GET", path: "/student/1/roadmap" },
     ]);
   });
 
@@ -852,12 +1023,26 @@ describe("Member 5 Issue #40 role-aware frontend", () => {
     storeUser();
     window.history.pushState({}, "", "/roadmap");
     let resolveGeneration!: (response: Response) => void;
+    let cachedRequestCount = 0;
 
     vi.stubGlobal(
       "fetch",
       vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
         if (!init?.method) {
-          return Response.json({ detail: "Roadmap not found." }, { status: 404 });
+          cachedRequestCount += 1;
+
+          if (cachedRequestCount === 1) {
+            return Response.json({ detail: "Roadmap not found." }, { status: 404 });
+          }
+
+          return Response.json({
+            user_id: 1,
+            source: "fallback",
+            roadmap: {
+              summary: "Generation finished successfully.",
+              steps: [],
+            },
+          });
         }
 
         return new Promise<Response>((resolve) => {
@@ -870,7 +1055,7 @@ describe("Member 5 Issue #40 role-aware frontend", () => {
     render(<App />);
     await screen.findByText("No roadmap generated yet");
     await browser.click(
-      screen.getByRole("button", { name: /Generate my roadmap/i }),
+      screen.getByRole("button", { name: /Generate and save my roadmap/i }),
     );
 
     expect(screen.getByText("Building your roadmap...")).toBeInTheDocument();
@@ -882,8 +1067,7 @@ describe("Member 5 Issue #40 role-aware frontend", () => {
         source: "fallback",
         roadmap: {
           summary: "Generation finished successfully.",
-          milestones: [],
-          recommended_next_steps: [],
+          steps: [],
         },
       }),
     );
@@ -904,8 +1088,7 @@ describe("Member 5 Issue #40 role-aware frontend", () => {
             source: "ai",
             roadmap: {
               summary: "Recovered AI-assisted roadmap.",
-              milestones: [],
-              recommended_next_steps: [],
+              steps: [],
             },
           });
     });
@@ -1119,6 +1302,13 @@ describe("Member 5 Issue #40 role-aware frontend", () => {
           });
         }
 
+        if (
+          path === "/institution/3/opportunities" ||
+          path === "/institution/3/opportunities/all"
+        ) {
+          return Response.json([]);
+        }
+
         return Response.json({ detail: "Not found" }, { status: 404 });
       }),
     );
@@ -1145,16 +1335,23 @@ describe("Member 5 Issue #40 role-aware frontend", () => {
       "src",
       "http://localhost:8000/uploads/logos/7_logo.png",
     );
-    expect(requests.map(({ path }) => path)).toEqual([
-      "/institution/3",
-      "/institution-profile",
-      "/institution/3/logo",
-    ]);
+    expect(requests.map(({ path }) => path)).toEqual(
+      expect.arrayContaining([
+        "/institution/3",
+        "/institution-profile",
+        "/institution/3/logo",
+        "/institution/3/opportunities",
+        "/institution/3/opportunities/all",
+      ]),
+    );
 
-    const uploadRequest = requests[2];
-    expect(uploadRequest.body).toBeInstanceOf(FormData);
-    expect((uploadRequest.body as FormData).get("file")).toBe(logo);
-    expect(uploadRequest.headers.has("Content-Type")).toBe(false);
+    const uploadRequest = requests.find(
+      ({ path }) => path === "/institution/3/logo",
+    );
+    expect(uploadRequest).toBeDefined();
+    expect(uploadRequest!.body).toBeInstanceOf(FormData);
+    expect((uploadRequest!.body as FormData).get("file")).toBe(logo);
+    expect(uploadRequest!.headers.has("Content-Type")).toBe(false);
   });
 
   it("removes unsupported homepage claims and names only real AI features", () => {
@@ -1173,5 +1370,274 @@ describe("Member 5 Issue #40 role-aware frontend", () => {
       "href",
       "mailto:skillplus.teamm@gmail.com",
     );
+
+  });
+});
+
+describe("Issue #55 global frontend UX, navigation and integration", () => {
+  beforeEach(() => {
+    window.localStorage.clear();
+    vi.unstubAllGlobals();
+    window.history.pushState({}, "", "/");
+  });
+
+  it("removes demo and internal text and uses the reusable About footer", async () => {
+    const homeRender = render(<App />);
+
+    expect(screen.queryByRole("button", { name: /View Demo/i })).not.toBeInTheDocument();
+    expect(screen.getByText(/Skill\+ helps university students/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/Skill\+ Project Team/i)).toHaveLength(2);
+    expect(screen.getByRole("link", { name: /Email Skill\+ support/i })).toHaveAttribute(
+      "href",
+      "mailto:skillplus.teamm@gmail.com",
+    );
+
+    homeRender.unmount();
+
+    window.localStorage.setItem(
+      "skillplus_user",
+      JSON.stringify({ ...user, has_profile: false }),
+    );
+    window.history.pushState({}, "", "/profile");
+
+    const secondRender = render(<App />);
+    expect(
+      await screen.findByRole("heading", { name: /Build your student profile/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText(/fields exactly match the student profile API and database/i),
+    ).not.toBeInTheDocument();
+    secondRender.unmount();
+  });
+
+  it("provides all six student links, highlights the current page and preserves logout", async () => {
+    window.localStorage.setItem(
+      "skillplus_user",
+      JSON.stringify({ ...user, has_profile: true }),
+    );
+    window.history.pushState({}, "", "/todo");
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json({ user_id: 1, tasks: [] })),
+    );
+
+    const browser = userEvent.setup();
+    render(<App />);
+
+    expect(
+      await screen.findByRole("heading", { name: /Your To-Do/i }),
+    ).toBeInTheDocument();
+
+    const navigation = screen.getByRole("navigation", { name: /Student navigation/i });
+    const expectedLinks = [
+      ["Dashboard", "/dashboard"],
+      ["Profile", "/profile"],
+      ["Results", "/results"],
+      ["Matches", "/recommendations"],
+      ["Roadmap", "/roadmap"],
+      ["To-Do", "/todo"],
+    ];
+
+    for (const [label, href] of expectedLinks) {
+      expect(within(navigation).getByRole("link", { name: label })).toHaveAttribute(
+        "href",
+        href,
+      );
+    }
+
+    expect(within(navigation).getByRole("link", { name: "To-Do" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    expect(screen.getByText(/© 2026 Skill\+ Project Team/i)).toBeInTheDocument();
+
+    await browser.click(screen.getByRole("button", { name: /Log out/i }));
+    expect(
+      await screen.findByRole("heading", { name: /Welcome back/i }),
+    ).toBeInTheDocument();
+    expect(window.localStorage.getItem("skillplus_user")).toBeNull();
+  });
+
+  it("restores profile analysis from the server after a fresh returning-student login", async () => {
+    window.localStorage.setItem(
+      "skillplus_user",
+      JSON.stringify({ ...user, has_profile: true }),
+    );
+    window.history.pushState({}, "", "/results");
+    const requests: string[] = [];
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const path = new URL(String(input)).pathname;
+        requests.push(path);
+
+        if (path === "/student/profile/1") {
+          return Response.json({
+            student_id: 4,
+            user_id: 1,
+            major: "Computer Science",
+            year_of_study: 3,
+            courses_taken: ["Data Structures"],
+            current_skills: ["Python"],
+            interests: ["AI"],
+            career_goal: "Software Engineer",
+            available_time_per_week: 8,
+            preferred_opportunity_type: "Internship",
+            level: "Intermediate",
+            profile_picture_url: null,
+          });
+        }
+
+        if (path === "/student/analyze/1") {
+          return Response.json({
+            level: "Intermediate",
+            strengths: ["Python"],
+            missing: ["Git"],
+            next_step: "Practice Git workflows.",
+          });
+        }
+
+        return Response.json({ detail: "Not found" }, { status: 404 });
+      }),
+    );
+
+    render(<App />);
+
+    expect(
+      await screen.findByRole("heading", { name: /Your analysis is ready/i }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Practice Git workflows.")).toBeInTheDocument();
+    expect(requests).toEqual(["/student/profile/1", "/student/analyze/1"]);
+    expect(window.localStorage.getItem("skillplus_profile")).not.toBeNull();
+    expect(window.localStorage.getItem("skillplus_analysis")).not.toBeNull();
+  });
+
+  it("adds a roadmap step to the shared To-Do system", async () => {
+    window.localStorage.setItem(
+      "skillplus_user",
+      JSON.stringify({ ...user, has_profile: true }),
+    );
+    window.history.pushState({}, "", "/roadmap");
+    const step = {
+      order: 1,
+      title: "Practice Git workflows",
+      description: "Use branches and pull requests in a small project.",
+      relevant_skill: "Git",
+      opportunity_category: "Project",
+      priority: "high",
+      task_id: null,
+      task_status: null,
+      opportunities: [
+        {
+          opportunity: {
+            id: 12,
+            title: "Git Collaboration Workshop",
+            category: "Workshop",
+          },
+          score: 88,
+          reasons: ["Builds the target Git skill"],
+          match_level: 3,
+        },
+      ],
+    };
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const path = new URL(String(input)).pathname;
+
+        if (path === "/student/1/roadmap" && !init?.method) {
+          return Response.json({
+            user_id: 1,
+            source: "fallback",
+            roadmap: { summary: "Build core collaboration skills.", steps: [step] },
+          });
+        }
+
+        if (path === "/student/1/roadmap/steps/1/create-task") {
+          return Response.json({
+            message: "Task created and linked to roadmap step.",
+            task: { id: 77, status: "todo" },
+            step: {
+              order: step.order,
+              title: step.title,
+              description: step.description,
+              relevant_skill: step.relevant_skill,
+              opportunity_category: step.opportunity_category,
+              priority: step.priority,
+              task_id: 77,
+            },
+          });
+        }
+
+        return Response.json({ detail: "Not found" }, { status: 404 });
+      }),
+    );
+
+    const browser = userEvent.setup();
+    render(<App />);
+
+    await browser.click(
+      await screen.findByRole("button", { name: /Add step to To-Do/i }),
+    );
+    expect(await screen.findByText("Linked to To-Do")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /Add step to To-Do/i }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText("Git Collaboration Workshop")).toBeInTheDocument();
+  });
+
+  it("shows an institution its previous uploads and engagement counts", async () => {
+    storeInstitutionUser();
+    window.history.pushState({}, "", "/institution/dashboard");
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const path = new URL(String(input)).pathname;
+
+        if (path === "/institution/3") {
+          return Response.json({
+            id: 7,
+            user_id: 3,
+            institution_name: "AUB Career Office",
+            website: null,
+            description: "Career opportunities for students.",
+            logo_url: null,
+          });
+        }
+
+        if (path === "/institution/3/opportunities") {
+          return Response.json([
+            {
+              id: 12,
+              title: "Software Engineering Internship",
+              category: "Internship",
+              difficulty: "Intermediate",
+              link: "https://example.com/internship",
+              views: 12,
+              added_to_todo: 4,
+            },
+          ]);
+        }
+
+        if (path === "/institution/3/opportunities/all") {
+          return Response.json([]);
+        }
+
+        return Response.json({ detail: "Not found" }, { status: 404 });
+      }),
+    );
+
+    render(<App />);
+
+    expect(
+      await screen.findByRole("heading", { name: /Your previous uploads/i }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Software Engineering Internship")).toBeInTheDocument();
+    expect(screen.getByText("12 views")).toBeInTheDocument();
+    expect(screen.getByText("4 To-Do adds")).toBeInTheDocument();
   });
 });

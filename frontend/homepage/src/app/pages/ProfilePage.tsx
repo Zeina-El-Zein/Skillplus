@@ -334,9 +334,9 @@ export default function ProfilePage() {
   return (
     <FlowLayout>
       <PageCard
-        eyebrow="Step 3 of 6"
+        eyebrow="Student profile"
         title="Build your student profile"
-        description="These fields exactly match the student profile API and database agreed by the team."
+        description="Keep your academic background, skills, interests and goals up to date to improve your matches."
       >
         {loadingExisting ? (
           <div

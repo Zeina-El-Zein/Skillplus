@@ -1602,9 +1602,10 @@ current structure is:
   `attach_opportunities_to_roadmap()`. Computed live on every
   `GET /roadmap` call -- never cached, so matches never go stale (e.g.
   when an opportunity's deadline passes).
-- `match_level` (1-4): 1 = category + skill both match, 2 = either
-  category or skill matches, 3-4 = progressively weaker fallback
-  matches, used when nothing closely matches the step.
+- `match_level` (1-4): 1 = category + skill both match, 2 = category
+  only, 3 = skill only, and 4 = a general fallback used when nothing
+  directly matches the step. Category-only and skill-only candidates
+  are pooled and ranked by fit score while retaining their 2/3 labels.
 
 ---
 
