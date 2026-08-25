@@ -1562,3 +1562,128 @@ GET /opportunities
 GET /opportunities/{opportunity_id}
 POST /opportunities/{opportunity_id}/view
 ```
+---
+
+# Roadmap Steps (Updated Structure)
+
+Roadmaps no longer use `milestones` / `recommended_next_steps`. The
+current structure is:
+
+```json
+{
+  "summary": "...",
+  "steps": [
+    {
+      "order": 1,
+      "title": "...",
+      "description": "...",
+      "relevant_skill": "SQL",
+      "opportunity_category": "Workshop",
+      "priority": "high",
+      "task_id": null,
+      "opportunities": [
+        {
+          "opportunity": { ...opportunity fields... },
+          "score": 82,
+          "reasons": ["Uses your Python skill", "..."],
+          "match_level": 1
+        }
+      ]
+    }
+  ]
+}
+```
+
+- `relevant_skill` / `opportunity_category`: suggested by Gemini (or the
+  rules-based fallback) -- never a specific opportunity name.
+- `task_id`: null until the step is linked to a real `student_tasks`
+  record. Set via `POST /student/{user_id}/roadmap/steps/{order}/create-task`.
+- `opportunities`: real DB rows matched to the step via `scoring.py`'s
+  `attach_opportunities_to_roadmap()`. Computed live on every
+  `GET /roadmap` call -- never cached, so matches never go stale (e.g.
+  when an opportunity's deadline passes).
+- `match_level` (1-4): 1 = category + skill both match, 2 = either
+  category or skill matches, 3-4 = progressively weaker fallback
+  matches, used when nothing closely matches the step.
+
+---
+
+## GET `/student/{user_id}/roadmap`
+
+In addition to the fields above, each step now also includes:
+
+```json
+"task_status": "todo" | "in_progress" | "done" | null
+```
+
+This is looked up live from the linked `student_tasks` row (null if
+`task_id` is null). It is the single source of truth for a step's
+progress -- roadmap steps never store their own status.
+
+---
+
+## POST `/student/{user_id}/roadmap/steps/{order}/create-task`
+
+Converts a roadmap step into a real `student_tasks` record.
+
+Example:
+
+```text
+POST /student/1/roadmap/steps/1/create-task
+```
+
+Response:
+
+```json
+{
+  "message": "Task created and linked to roadmap step.",
+  "task": { ...student_tasks row... },
+  "step": { ...updated step, now with task_id set... }
+}
+```
+
+- The created task has `source = "roadmap"` and `opportunity_id = NULL`.
+- If the step is already linked to a task, returns `409 Conflict`
+  instead of creating a duplicate.
+- Missing student, roadmap, or step -> `404`.
+
+---
+
+## POST `/student/{user_id}/reanalyze`
+
+Refreshes a student's level, regenerates their roadmap, and refreshes
+recommendations -- while preserving roadmap steps the student has
+already completed.
+
+Body:
+
+```json
+{ "trigger": "profile_edit" | "manual" }
+```
+
+Response:
+
+```json
+{
+  "user_id": 1,
+  "level": "Intermediate",
+  "source": "ai" | "fallback",
+  "roadmap": { "summary": "...", "steps": [ ... ] },
+  "trigger": "profile_edit" | "manual",
+  "updated_at": "2026-08-25T10:00:00"
+}
+```
+
+Behavior:
+
+1. Re-runs level classification against the latest profile fields
+   (same rules as `POST /student/analyze/{user_id}`).
+2. Steps whose `task_id` points at a `student_tasks` row with
+   `status = "done"` are preserved and kept at the front of the new
+   roadmap -- they are never wiped by a fresh regeneration.
+3. All other steps are freshly generated (AI or rules-based fallback,
+   same as `POST /roadmap`).
+4. Completing a task never automatically grants a skill -- profile
+   `current_skills` is never modified by this endpoint.
+5. Recommendations/opportunities are computed live in the response,
+   same as `GET /roadmap` -- never cached.

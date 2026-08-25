@@ -27,7 +27,6 @@ from schemas import (
     TaskCreateRequest,
     TaskStatusUpdateRequest,
     TaskPriorityUpdateRequest,
-    ReanalyzeRequest
 )
 from classification import analyze_profile
 from scoring import score_opportunity, attach_opportunities_to_roadmap
@@ -1981,6 +1980,27 @@ def get_cached_student_roadmap(
             profile_dict,
             opportunity_dicts
         )
+
+        for step in roadmap_with_opportunities.get("steps", []):
+            task_id = step.get("task_id")
+
+            if task_id is None:
+                step["task_status"] = None
+                continue
+
+            linked_task = db.execute(
+                text("""
+                    SELECT status
+                    FROM student_tasks
+                    WHERE id = :task_id
+                      AND student_id = :student_id
+                """),
+                {"task_id": task_id, "student_id": profile["id"]}
+            ).mappings().fetchone()
+
+            step["task_status"] = (
+                linked_task["status"] if linked_task is not None else None
+            )
 
         return {
             "user_id": roadmap["user_id"],
