@@ -188,6 +188,7 @@ export type RoadmapStep = {
   opportunity_category: string;
   priority: "high" | "medium" | "low";
   task_id: number | null;
+  task_status: "todo" | "in_progress" | "done" | null;
   opportunities: RoadmapOpportunityMatch[];
 };
 

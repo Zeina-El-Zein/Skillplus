@@ -5,8 +5,10 @@ import {
   Brain,
   CalendarClock,
   CheckCircle2,
+  Circle,
+  ListTodo,
   Loader2,
-  Map,
+  Map as MapIcon,
   RefreshCw,
   Sparkles,
   Target,
@@ -60,7 +62,7 @@ function getMatchLabel(match: RoadmapOpportunityMatch) {
 function RoadmapGenerationAnimation() {
   const nodes = [
     { Icon: Brain, label: "Profile" },
-    { Icon: Map, label: "Plan" },
+    { Icon: MapIcon, label: "Plan" },
     { Icon: CheckCircle2, label: "Ready" },
   ];
 
@@ -93,6 +95,58 @@ function RoadmapGenerationAnimation() {
       ))}
     </div>
   );
+}
+
+type StepStatus = "done" | "current" | "upcoming";
+
+function resolveStepStatuses(steps: RoadmapStep[]): Map<number, StepStatus> {
+  const statuses = new Map<number, StepStatus>();
+  let currentAssigned = false;
+
+  for (const step of steps) {
+    if (step.task_status === "done") {
+      statuses.set(step.order, "done");
+      continue;
+    }
+
+    if (!currentAssigned) {
+      statuses.set(step.order, "current");
+      currentAssigned = true;
+    } else {
+      statuses.set(step.order, "upcoming");
+    }
+  }
+
+  return statuses;
+}
+
+function statusStyles(status: StepStatus) {
+  switch (status) {
+    case "done":
+      return {
+        markerClass: "border-green-500 bg-green-500 text-white",
+        cardClass: "border-green-200 bg-green-50/40",
+        badgeClass: "border-green-200 bg-green-50 text-green-700",
+        badgeLabel: "Done",
+        Icon: CheckCircle2,
+      };
+    case "current":
+      return {
+        markerClass: "border-blue-700 bg-blue-900 text-white ring-4 ring-blue-100",
+        cardClass: "border-blue-300 bg-white shadow-md",
+        badgeClass: "border-blue-200 bg-blue-50 text-blue-800",
+        badgeLabel: "In Progress",
+        Icon: Loader2,
+      };
+    case "upcoming":
+      return {
+        markerClass: "border-gray-300 bg-white text-gray-400",
+        cardClass: "border-gray-200 bg-white",
+        badgeClass: "border-gray-200 bg-gray-50 text-gray-500",
+        badgeLabel: "To Do",
+        Icon: Circle,
+      };
+  }
 }
 
 export default function RoadmapPage() {
@@ -199,6 +253,9 @@ export default function RoadmapPage() {
 
   const generatedAt =
     formatGeneratedAt(result?.generated_at);
+  const stepStatuses = result
+    ? resolveStepStatuses(result.roadmap.steps)
+    : new Map<number, StepStatus>();
 
   return (
     <FlowLayout wide>
@@ -272,7 +329,7 @@ export default function RoadmapPage() {
         ) : missing ? (
           <div className="flex flex-col items-center gap-6 py-12 text-center">
             <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-50 text-blue-800">
-              <Map className="h-8 w-8" />
+              <MapIcon className="h-8 w-8" />
             </div>
 
             <div>
@@ -370,147 +427,165 @@ export default function RoadmapPage() {
               </p>
             </div>
 
-            <div>
+                        <div>
               <h2 className="text-xl font-extrabold text-gray-900">
-                Roadmap steps
+                Roadmap timeline
               </h2>
 
               <p className="mt-1 text-sm text-gray-500">
-                Each step is linked to your shared To-Do system when a task has
-                been created for it.
+                Progress reflects your shared To-Do list. Completing a
+                linked task here updates its status everywhere.
               </p>
 
-              <div className="mt-4 flex flex-col gap-5">
-                {result.roadmap.steps.map(
-                  (step, index) => (
+              <div className="relative mt-6 flex flex-col gap-6">
+                <div
+                  aria-hidden="true"
+                  className="absolute left-[19px] top-2 bottom-2 w-0.5 bg-gray-200"
+                />
+
+                {result.roadmap.steps.map((step, index) => {
+                  const stepStatus =
+                    stepStatuses.get(step.order) ?? "upcoming";
+                  const styles = statusStyles(stepStatus);
+                  const StatusIcon = styles.Icon;
+
+                  return (
                     <article
                       key={`${step.order}-${step.title}`}
-                      className="roadmap-reveal rounded-2xl border border-blue-100 bg-white p-5 shadow-sm"
+                      className={`roadmap-reveal relative flex gap-4 rounded-2xl border p-5 ${styles.cardClass}`}
                       style={{
                         animationDelay: `${Math.min(index, 6) * 100}ms`,
                       }}
                     >
-                      <div className="flex items-start gap-4">
-                        <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-blue-900 text-sm font-extrabold text-white">
-                          {step.order}
+                      <div className="relative z-10 flex flex-shrink-0 flex-col items-center">
+                        <div
+                          className={`flex h-10 w-10 items-center justify-center rounded-full border-2 text-sm font-extrabold ${styles.markerClass}`}
+                        >
+                          {stepStatus === "done" ? (
+                            <StatusIcon className="h-5 w-5" />
+                          ) : stepStatus === "current" ? (
+                            <StatusIcon className="h-5 w-5 animate-spin" />
+                          ) : (
+                            step.order
+                          )}
                         </div>
+                      </div>
 
-                        <div className="min-w-0 flex-1">
-                          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                            <div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                          <div>
+                            <div className="flex flex-wrap items-center gap-2">
                               <h3 className="text-lg font-extrabold text-gray-900">
                                 {step.title}
                               </h3>
 
-                              <p className="mt-2 text-sm leading-relaxed text-gray-600">
-                                {step.description}
-                              </p>
+                              <span
+                                className={`rounded-full border px-2.5 py-0.5 text-xs font-bold ${styles.badgeClass}`}
+                              >
+                                {styles.badgeLabel}
+                              </span>
                             </div>
 
-                            <span className="w-fit rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-800">
-                              {formatPriority(
-                                step.priority,
-                              )}{" "}
-                              priority
-                            </span>
+                            <p className="mt-2 text-sm leading-relaxed text-gray-600">
+                              {step.description}
+                            </p>
                           </div>
 
-                          <div className="mt-4 flex flex-wrap gap-2">
-                            {step.relevant_skill && (
-                              <span className="rounded-full border border-blue-100 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-800">
-                                Skill:{" "}
-                                {step.relevant_skill}
-                              </span>
-                            )}
+                          <span className="w-fit rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-800">
+                            {formatPriority(step.priority)} priority
+                          </span>
+                        </div>
 
-                            {step.opportunity_category && (
-                              <span className="rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-xs font-semibold text-gray-700">
-                                Category:{" "}
-                                {step.opportunity_category}
-                              </span>
-                            )}
-
-                            <span
-                              className={`rounded-full border px-3 py-1 text-xs font-semibold ${
-                                step.task_id
-                                  ? "border-green-200 bg-green-50 text-green-700"
-                                  : "border-gray-200 bg-gray-50 text-gray-500"
-                              }`}
-                            >
-                              {step.task_id
-                                ? "Linked to To-Do"
-                                : "Not added to To-Do"}
+                        <div className="mt-4 flex flex-wrap gap-2">
+                          {step.relevant_skill && (
+                            <span className="rounded-full border border-blue-100 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-800">
+                              Skill: {step.relevant_skill}
                             </span>
-                          </div>
+                          )}
 
-                          <div className="mt-5">
-                            <h4 className="flex items-center gap-2 text-sm font-bold text-gray-900">
-                              <Target className="h-4 w-4 text-blue-800" />
-                              Relevant opportunities
-                            </h4>
+                          {step.opportunity_category && (
+                            <span className="rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-xs font-semibold text-gray-700">
+                              Category: {step.opportunity_category}
+                            </span>
+                          )}
 
-                            {step.opportunities.length > 0 ? (
-                              <div className="mt-3 grid gap-3">
-                                {step.opportunities.map(
-                                  (match) => (
-                                    <div
-                                      key={`${step.order}-${match.opportunity.id}`}
-                                      className="rounded-xl border border-gray-100 bg-gray-50 p-4"
-                                    >
-                                      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                                        <div>
-                                          <p className="font-semibold text-gray-900">
-                                            {match.opportunity.title}
-                                          </p>
+                          <span
+                            className={`inline-flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-semibold ${
+                              step.task_id
+                                ? "border-green-200 bg-green-50 text-green-700"
+                                : "border-gray-200 bg-gray-50 text-gray-500"
+                            }`}
+                          >
+                            <ListTodo className="h-3.5 w-3.5" />
+                            {step.task_id
+                              ? "Linked to To-Do"
+                              : "Not added to To-Do"}
+                          </span>
+                        </div>
 
-                                          <p className="mt-1 text-xs text-gray-500">
-                                            {match.opportunity.category ||
-                                              "Opportunity"}
-                                          </p>
-                                        </div>
+                        <div className="mt-5">
+                          <h4 className="flex items-center gap-2 text-sm font-bold text-gray-900">
+                            <Target className="h-4 w-4 text-blue-800" />
+                            Relevant opportunities
+                          </h4>
 
-                                        <div className="flex flex-wrap gap-2">
-                                          <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-800">
-                                            {match.score}% match
-                                          </span>
+                          {step.opportunities.length > 0 ? (
+                            <div className="mt-3 grid gap-3">
+                              {step.opportunities.map((match) => (
+                                <div
+                                  key={`${step.order}-${match.opportunity.id}`}
+                                  className="rounded-xl border border-gray-100 bg-gray-50 p-4"
+                                >
+                                  <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                                    <div>
+                                      <p className="font-semibold text-gray-900">
+                                        {match.opportunity.title}
+                                      </p>
 
-                                          <span className="rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-semibold text-gray-600">
-                                            {getMatchLabel(
-                                              match,
-                                            )}
-                                          </span>
-                                        </div>
-                                      </div>
-
-                                      {match.reasons.length > 0 && (
-                                        <ul className="mt-3 space-y-1 text-xs text-gray-600">
-                                          {match.reasons.map(
-                                            (reason, reasonIndex) => (
-                                              <li
-                                                key={`${match.opportunity.id}-${reasonIndex}`}
-                                              >
-                                                • {reason}
-                                              </li>
-                                            ),
-                                          )}
-                                        </ul>
-                                      )}
+                                      <p className="mt-1 text-xs text-gray-500">
+                                        {match.opportunity.category ||
+                                          "Opportunity"}
+                                      </p>
                                     </div>
-                                  ),
-                                )}
-                              </div>
-                            ) : (
-                              <p className="mt-3 text-sm text-gray-500">
-                                No matching opportunities are available for
-                                this step right now.
-                              </p>
-                            )}
-                          </div>
+
+                                    <div className="flex flex-wrap gap-2">
+                                      <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-800">
+                                        {match.score}% match
+                                      </span>
+
+                                      <span className="rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-semibold text-gray-600">
+                                        {getMatchLabel(match)}
+                                      </span>
+                                    </div>
+                                  </div>
+
+                                  {match.reasons.length > 0 && (
+                                    <ul className="mt-3 space-y-1 text-xs text-gray-600">
+                                      {match.reasons.map(
+                                        (reason, reasonIndex) => (
+                                          <li
+                                            key={`${match.opportunity.id}-${reasonIndex}`}
+                                          >
+                                            • {reason}
+                                          </li>
+                                        ),
+                                      )}
+                                    </ul>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <p className="mt-3 text-sm text-gray-500">
+                              No matching opportunities are available for
+                              this step right now.
+                            </p>
+                          )}
                         </div>
                       </div>
                     </article>
-                  ),
-                )}
+                  );
+                })}
               </div>
             </div>
 

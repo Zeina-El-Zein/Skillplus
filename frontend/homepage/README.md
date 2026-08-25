@@ -232,3 +232,40 @@ npm run build
 ```
 
 The automated tests verify both complete role flows; exact role, institution, draft, publish and roadmap requests; editable AI fallback behavior; roadmap cache/generation/errors/retries; role guards; corrected homepage claims; and all earlier recommendation, validation, refresh and password-reset behavior.
+# Roadmap Page
+
+`src/pages/RoadmapPage.tsx` renders the student's roadmap as a visual
+timeline (not a flat list).
+
+## Status model
+
+A step's visual status is derived, never stored:
+
+- **Done** -- `step.task_status === "done"`
+- **Current** -- the first step (in order) that is not done
+- **Upcoming** -- every step after the current one
+
+This comes from `resolveStepStatuses()` in `RoadmapPage.tsx`, computed
+fresh on every render from `task_status` on each step (see `types.ts`).
+The roadmap itself never has its own status field -- progress always
+comes from the linked task in the shared To-Do system (`task_id` /
+`task_status`), per the shared-progress-model requirement.
+
+## Types
+
+`RoadmapStep` (in `types.ts`) includes:
+
+```ts
+task_id: number | null;
+task_status: "todo" | "in_progress" | "done" | null;
+```
+
+`task_status` is `null` until a step is linked to a task via
+`POST /student/{user_id}/roadmap/steps/{order}/create-task`.
+
+## Known gotcha
+
+`lucide-react`'s `Map` icon is imported as `MapIcon` (not `Map`) in
+this file, because the native JS `Map` class is used for
+`resolveStepStatuses()`'s return type. Do not rename it back to `Map`
+without checking for this collision again.
