@@ -2,6 +2,7 @@ import type {
   AnalysisResult,
   AuthResponse,
   InstitutionLogoUploadResponse,
+  InstitutionOpportunity,
   InstitutionProfile,
   OpportunityProcessResponse,
   OpportunitySubmission,
@@ -12,6 +13,7 @@ import type {
   ReanalyzeResponse,
   ReanalyzeTrigger,
   RoadmapResponse,
+  RoadmapTaskCreateResponse,
   StudentProfile,
   StudentProfileResponse,
   StudentTasksResponse,
@@ -59,7 +61,7 @@ async function request<T>(
     });
   } catch {
     throw new ApiError(
-      "Cannot reach the Skill+ backend. Make sure FastAPI is running.",
+      "We can’t connect to Skill+ right now. Please try again in a moment.",
       0,
     );
   }
@@ -331,6 +333,30 @@ export function submitInstitutionOpportunity(
   );
 }
 
+export function getInstitutionOwnOpportunities(userId: number) {
+  return request<InstitutionOpportunity[]>(
+    `/institution/${userId}/opportunities`,
+  );
+}
+
+export function getInstitutionAllOpportunities(userId: number) {
+  return request<InstitutionOpportunity[]>(
+    `/institution/${userId}/opportunities/all`,
+  );
+}
+
+export function recordOpportunityView(
+  opportunityId: number,
+  userId: number,
+) {
+  return request<{ message: string }>(
+    `/opportunities/${opportunityId}/view?user_id=${userId}`,
+    {
+      method: "POST",
+    },
+  );
+}
+
 export function getStudentRoadmap(
   userId: number,
 ) {
@@ -344,6 +370,18 @@ export function generateStudentRoadmap(
 ) {
   return request<RoadmapResponse>(
     `/student/${userId}/roadmap`,
+    {
+      method: "POST",
+    },
+  );
+}
+
+export function createRoadmapStepTask(
+  userId: number,
+  order: number,
+) {
+  return request<RoadmapTaskCreateResponse>(
+    `/student/${userId}/roadmap/steps/${order}/create-task`,
     {
       method: "POST",
     },

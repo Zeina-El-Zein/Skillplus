@@ -426,6 +426,43 @@ def test_match_opportunities_falls_back_to_skill_only():
     assert all(r["match_level"] == 3 for r in results)
 
 
+def test_category_and_skill_only_matches_share_one_score_ranked_pool():
+    profile = make_test_profile()
+    step = make_step("Python", "Workshop")
+    category_only = {
+        "title": "Unrelated General Workshop",
+        "category": "Workshop",
+        "suitable_major": "Biology",
+        "difficulty": "Advanced",
+        "required_skills": ["Chemistry"],
+        "skills_gained": ["Lab Safety"],
+        "suitable_year": 4,
+        "hours_per_week": 30,
+        "deadline": None,
+    }
+    skill_only = {
+        "title": "Software Engineer Python Internship",
+        "category": "Internship",
+        "suitable_major": "Computer Science",
+        "difficulty": "Beginner",
+        "required_skills": ["Python"],
+        "skills_gained": ["Python"],
+        "suitable_year": 1,
+        "hours_per_week": 5,
+        "deadline": None,
+    }
+
+    results = match_opportunities_for_step(
+        step,
+        profile,
+        [category_only, skill_only],
+    )
+
+    assert [result["match_level"] for result in results] == [3, 2]
+    assert results[0]["opportunity"]["title"] == skill_only["title"]
+    assert results[0]["score"] > results[1]["score"]
+
+
 def test_match_opportunities_never_returns_empty_when_pool_is_nonempty():
     # Nothing matches skill or category at all -- must still return the
     # top overall fits (match_level 4), never an empty list, so a step

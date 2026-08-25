@@ -255,17 +255,21 @@ Verified cases:
 
 ---
 
-## Member 5 Frontend (Feature 4 Issue #40)
+## Member 5 Frontend (Feature 4 Issue #40 and Issue #55)
 
 The frontend now supports both roles returned by authentication.
 
 ### Student flow
 
 ~~~text
-signup → profile → analysis → recommendations → roadmap
+signup → login → profile/dashboard → results → matches → roadmap → to-do
 ~~~
 
-Returning students log in to `/recommendations` when the authentication response reports `has_profile: true`; otherwise they continue to `/profile`. The roadmap screen uses `GET /student/{user_id}/roadmap` and `POST /student/{user_id}/roadmap`. It shows cached, animated generation, loading, missing, error, retry, AI-assisted and rules-based fallback states.
+Signup creates the account and returns to `/login`; it does not create a browser session or log the user in automatically. Login follows the final shared routing contract: a student without a completed profile goes to `/profile`, a returning student with a profile goes to `/dashboard`, and an institution goes to `/institution/dashboard`.
+
+Returning students can use the shared navigation on every student page to move between `/dashboard`, `/profile`, `/results`, `/recommendations`, `/roadmap`, and `/todo`. The active page is highlighted and Profile remains available for editing.
+
+The roadmap screen uses `GET /student/{user_id}/roadmap` and `POST /student/{user_id}/roadmap`. It shows cached, animated generation, loading, missing, error, retry, AI-assisted and rules-based fallback states. Generated roadmaps are cached by the backend, visibly marked as saved, and each roadmap step can be added to the student's To-Do list.
 
 Student profile pictures use `POST /student/{user_id}/profile-picture`. Existing profiles and picture paths can be restored with `GET /student/profile/{user_id}`.
 
@@ -283,13 +287,17 @@ POST /institution-profile
 POST /institution/{user_id}/logo
 POST /institution/opportunities/process
 POST /institution/opportunities
+GET  /institution/{user_id}/opportunities
+GET  /institution/{user_id}/opportunities/all
 ~~~
 
 The process endpoint only prepares a draft. The institution must review and edit every field before the final save request. Fallback drafts are labeled `Generated offline`.
 
+The dashboard also displays the institution's previously published opportunities, the shared catalog, and the `views` and `added_to_todo` engagement values returned by the backend. Student opportunity-detail clicks are recorded through `POST /opportunities/{opportunity_id}/view?user_id={user_id}`.
+
 ### Homepage accuracy
 
-Unsupported user counts, accuracy percentages, opportunity-volume claims and non-functional footer links were removed. Rule-based analysis and scoring are described separately from AI-assisted opportunity extraction and roadmap generation. The footer contact address is a working email link.
+Unsupported user counts, accuracy percentages, opportunity-volume claims, the Demo button, internal/developer-facing copy, and non-functional Privacy/Terms links were removed. Rule-based analysis and scoring are described separately from AI-assisted opportunity extraction and roadmap generation. One reusable About/footer component appears across the public and application pages and links the contact address `skillplus.teamm@gmail.com`.
 
 ### Frontend verification
 
@@ -300,4 +308,4 @@ npm run test:run
 npm run build
 ~~~
 
-The suite covers both role flows, `has_profile` routing, session expiry, exact API payloads, image uploads, role guards, fallback behavior, roadmap caching/generation/error/animation states, and all previously implemented Member 5 behavior.
+The frontend suite contains 31 passing tests. It covers both role flows, explicit login after signup, `has_profile` routing, session expiry, the six-link student navigation, results restoration after a fresh login, exact API payloads, image uploads, role guards, institution history/engagement data, To-Do integration, fallback behavior, roadmap caching/generation/error/animation states, and all previously implemented Member 5 behavior. The integrated backend suite contains 95 passing tests.

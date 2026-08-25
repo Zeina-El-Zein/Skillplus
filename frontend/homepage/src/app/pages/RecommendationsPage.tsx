@@ -16,6 +16,7 @@ import {
   createStudentTask,
   getStudentRecommendations,
   getStudentTasks,
+  recordOpportunityView,
 } from "../api";
 import FlowLayout from "../components/FlowLayout";
 import PageCard from "../components/PageCard";
@@ -176,7 +177,7 @@ async function handleAddToTodo(
   return (
     <FlowLayout>
       <PageCard
-        eyebrow="Step 5 of 6"
+        eyebrow="Opportunity matches"
         title="Your matched opportunities"
         description={`Ranked for ${user.name} using your major, level, skills, interests and preferred opportunity type.`}
       >
@@ -251,6 +252,10 @@ async function handleAddToTodo(
                 added={addedOpportunityIds.has(opportunity.id)}
                 adding={addingOpportunityIds.has(opportunity.id)}
                 onAdd={() => handleAddToTodo(opportunity)}
+                onOpen={() => {
+                  if (!userId) return;
+                  void recordOpportunityView(opportunity.id, userId).catch(() => undefined);
+                }}
               />
             ))}
 
@@ -283,12 +288,14 @@ function RecommendationCard({
   added,
   adding,
   onAdd,
+  onOpen,
 }: {
   opportunity: OpportunityRecommendation;
   rank: number;
   added: boolean;
   adding: boolean;
   onAdd: () => void;
+  onOpen: () => void;
 }) {
   const matchScore = Math.max(0, Math.min(100, Math.round(opportunity.match_score || 0)));
   const applyLink = safeLink(opportunity.link);
@@ -405,6 +412,7 @@ function RecommendationCard({
           href={applyLink}
           target="_blank"
           rel="noreferrer"
+          onClick={onOpen}
           className="inline-flex w-full items-center justify-center gap-2 bg-blue-900 hover:bg-blue-800 text-white font-semibold px-6 py-3 rounded-full transition-colors"
         >
           Apply for this opportunity

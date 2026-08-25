@@ -2,7 +2,10 @@ import { useEffect, useState, type FormEvent } from "react";
 import {
   Building2,
   CheckCircle2,
+  ExternalLink,
+  Eye,
   Globe2,
+  ListTodo,
   Loader2,
   Pencil,
   PlusCircle,
@@ -11,6 +14,8 @@ import {
 import { Link, Navigate } from "react-router";
 import {
   ApiError,
+  getInstitutionAllOpportunities,
+  getInstitutionOwnOpportunities,
   getInstitutionProfile,
   resolveApiAssetUrl,
   saveInstitutionProfile,
@@ -21,7 +26,7 @@ import { Field, TextAreaInput, TextInput } from "../components/FormField";
 import ImageUploadField from "../components/ImageUploadField";
 import PageCard from "../components/PageCard";
 import { getUser } from "../storage";
-import type { InstitutionProfile } from "../types";
+import type { InstitutionOpportunity, InstitutionProfile } from "../types";
 
 type InstitutionForm = {
   institutionName: string;
@@ -57,6 +62,10 @@ export default function InstitutionDashboardPage() {
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [reloadNumber, setReloadNumber] = useState(0);
+  const [ownOpportunities, setOwnOpportunities] = useState<InstitutionOpportunity[]>([]);
+  const [allOpportunities, setAllOpportunities] = useState<InstitutionOpportunity[]>([]);
+  const [opportunitiesLoading, setOpportunitiesLoading] = useState(false);
+  const [opportunitiesError, setOpportunitiesError] = useState("");
   const safeProfileWebsite =
     profile?.website && isSafeWebsite(profile.website) ? profile.website : null;
   const safeLogoUrl = resolveApiAssetUrl(profile?.logo_url);
@@ -103,6 +112,46 @@ export default function InstitutionDashboardPage() {
       active = false;
     };
   }, [reloadNumber, user?.role, userId]);
+
+  useEffect(() => {
+    if (!userId || user?.role !== "institution" || !profile) {
+      return;
+    }
+
+    let active = true;
+
+    setOpportunitiesLoading(true);
+    setOpportunitiesError("");
+
+    Promise.all([
+      getInstitutionOwnOpportunities(userId),
+      getInstitutionAllOpportunities(userId),
+    ])
+      .then(([own, all]) => {
+        if (!active) return;
+
+        setOwnOpportunities(Array.isArray(own) ? own : []);
+        setAllOpportunities(Array.isArray(all) ? all : []);
+      })
+      .catch((requestError) => {
+        if (!active) return;
+
+        setOpportunitiesError(
+          requestError instanceof Error
+            ? requestError.message
+            : "Could not load published opportunities.",
+        );
+      })
+      .finally(() => {
+        if (active) {
+          setOpportunitiesLoading(false);
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [profile, reloadNumber, user?.role, userId]);
 
   if (!user) return <Navigate to="/login" replace />;
   if (user.role !== "institution") return <Navigate to="/profile" replace />;
@@ -350,9 +399,132 @@ export default function InstitutionDashboardPage() {
                 )}
               </div>
             </div>
+
+            {profile && (
+              <section className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div>
+                    <h2 className="text-xl font-extrabold text-gray-900">
+                      Published opportunities
+                    </h2>
+                    <p className="mt-2 text-sm text-gray-500">
+                      Review your previous uploads and browse the full opportunity catalog.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setReloadNumber((current) => current + 1)}
+                    disabled={opportunitiesLoading}
+                    className="inline-flex w-fit items-center gap-2 rounded-full border border-blue-200 px-4 py-2 text-sm font-semibold text-blue-900 hover:bg-blue-50 disabled:opacity-60"
+                  >
+                    <RefreshCw className={`h-4 w-4 ${opportunitiesLoading ? "animate-spin" : ""}`} />
+                    Refresh
+                  </button>
+                </div>
+
+                {opportunitiesLoading ? (
+                  <div role="status" className="flex items-center gap-3 py-10 text-sm font-semibold text-blue-900">
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                    Loading published opportunities...
+                  </div>
+                ) : opportunitiesError ? (
+                  <p role="alert" className="mt-5 rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700">
+                    {opportunitiesError}
+                  </p>
+                ) : (
+                  <div className="mt-6 grid gap-6 xl:grid-cols-2">
+                    <OpportunityCollection
+                      title="Your previous uploads"
+                      empty="You have not published an opportunity yet."
+                      opportunities={ownOpportunities}
+                      showMetrics
+                    />
+                    <OpportunityCollection
+                      title="All published opportunities"
+                      empty="No published opportunities are available yet."
+                      opportunities={allOpportunities}
+                    />
+                  </div>
+                )}
+              </section>
+            )}
           </div>
         )}
       </PageCard>
     </FlowLayout>
+  );
+}
+
+function OpportunityCollection({
+  title,
+  empty,
+  opportunities,
+  showMetrics = false,
+}: {
+  title: string;
+  empty: string;
+  opportunities: InstitutionOpportunity[];
+  showMetrics?: boolean;
+}) {
+  return (
+    <div>
+      <div className="flex items-center justify-between gap-3">
+        <h3 className="font-bold text-gray-900">{title}</h3>
+        <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-bold text-blue-800">
+          {opportunities.length}
+        </span>
+      </div>
+
+      {opportunities.length === 0 ? (
+        <p className="mt-3 rounded-xl border border-gray-100 bg-gray-50 p-4 text-sm text-gray-500">
+          {empty}
+        </p>
+      ) : (
+        <div className="mt-3 max-h-[32rem] space-y-3 overflow-y-auto pr-1">
+          {opportunities.map((opportunity) => {
+            const safeLink = opportunity.link && isSafeWebsite(opportunity.link)
+              ? opportunity.link
+              : null;
+
+            return (
+              <article key={opportunity.id} className="rounded-xl border border-gray-100 bg-gray-50 p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <h4 className="font-semibold text-gray-900">{opportunity.title}</h4>
+                    <p className="mt-1 text-xs text-gray-500">
+                      {opportunity.category || "Opportunity"} · {opportunity.difficulty || "Any level"}
+                    </p>
+                  </div>
+                  {safeLink && (
+                    <a
+                      href={safeLink}
+                      target="_blank"
+                      rel="noreferrer"
+                      aria-label={`Open ${opportunity.title}`}
+                      className="rounded-full p-2 text-blue-800 hover:bg-blue-100"
+                    >
+                      <ExternalLink className="h-4 w-4" />
+                    </a>
+                  )}
+                </div>
+
+                {showMetrics && (
+                  <div className="mt-3 grid grid-cols-2 gap-2">
+                    <div className="flex items-center gap-2 rounded-lg bg-white px-3 py-2 text-xs font-semibold text-gray-700">
+                      <Eye className="h-4 w-4 text-blue-700" />
+                      {opportunity.views || 0} views
+                    </div>
+                    <div className="flex items-center gap-2 rounded-lg bg-white px-3 py-2 text-xs font-semibold text-gray-700">
+                      <ListTodo className="h-4 w-4 text-blue-700" />
+                      {opportunity.added_to_todo || 0} To-Do adds
+                    </div>
+                  </div>
+                )}
+              </article>
+            );
+          })}
+        </div>
+      )}
+    </div>
   );
 }

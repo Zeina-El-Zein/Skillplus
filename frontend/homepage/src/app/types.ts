@@ -153,6 +153,27 @@ export type OpportunitySubmissionResponse = {
   source: "institution";
 };
 
+export type InstitutionOpportunity = {
+  id: number;
+  title: string;
+  category: string | null;
+  suitable_major: string | null;
+  suitable_year: number | null;
+  difficulty: string | null;
+  required_skills: string[] | null;
+  skills_gained: string[] | null;
+  deadline: string | null;
+  estimated_time: string | null;
+  cv_benefit: string | null;
+  link: string | null;
+  hours_per_week: number | null;
+  institution_id: number | null;
+  source?: "seed" | "institution";
+  created_at?: string | null;
+  views?: number;
+  added_to_todo?: number;
+};
+
 /* ============================================================
    ROADMAP
    ============================================================ */
@@ -202,6 +223,12 @@ export type RoadmapResponse = {
   source: "ai" | "fallback";
   generated_at?: string;
   roadmap: RoadmapContent;
+};
+
+export type RoadmapTaskCreateResponse = {
+  message: string;
+  task: StudentTask;
+  step: RoadmapStep;
 };
 
 /* ============================================================

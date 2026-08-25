@@ -264,21 +264,17 @@ def match_opportunities_for_step(step, profile, opportunities, limit=3):
     Matching narrows progressively so a step is never left with zero
     opportunities just because nothing hits the strictest match:
       1. category AND relevant_skill both match
-      2. category match OR relevant_skill match (either one alone)
-         -- these are pooled together and ranked purely by fit score,
-         rather than treating "same category label" as a stronger signal
-         than "actually teaches the target skill". A step's
-         relevant_skill is the specific reason the step exists, so an
-         opportunity that teaches that skill shouldn't be buried behind
-         one that merely shares a category but is otherwise irrelevant.
-      3. no filter -- top overall fits for this student (last resort, so
-         the roadmap always has *something* to show next to a step)
+      2. category-only and relevant-skill-only matches are considered
+         together and ranked by student fit. Each result keeps its exact
+         contract label: 2 for category-only and 3 for skill-only.
+      3. no filter -- top overall fits for this student (match level 4,
+         used as a last resort so every step has something useful)
 
     Returns a list of {"opportunity": ..., "score": ..., "reasons": ...}
     sorted by score, descending, at most `limit` entries. Each entry also
-    carries "match_level" (1-3) so the frontend can distinguish a
+    carries "match_level" (1-4) so the frontend can distinguish a
     strong/direct match from a last-resort suggestion -- callers should
-    treat match_level 3 as "no direct match, showing a general
+    treat match_level 4 as "no direct match, showing a general
     recommendation instead" rather than presenting it as equally
     relevant to levels 1-2.
     """
@@ -292,25 +288,46 @@ def match_opportunities_for_step(step, profile, opportunities, limit=3):
         return scored
 
     both = []
-    either = []
+    category_only = []
+    skill_only = []
     for opp in opportunities:
         category_match, skill_match = _step_matches_opportunity(step, opp)
         if category_match and skill_match:
             both.append(opp)
-        elif category_match or skill_match:
-            either.append(opp)
+        elif category_match:
+            category_only.append(opp)
+        elif skill_match:
+            skill_only.append(opp)
 
-    for match_level, candidates in (
-        (1, both),
-        (2, either),
-        (3, opportunities),
-    ):
-        if candidates:
-            results = score_all(candidates)[:limit]
-            for r in results:
-                r["match_level"] = match_level
-            if results:
-                return results
+    if both:
+        results = score_all(both)[:limit]
+        for result in results:
+            result["match_level"] = 1
+        return results
+
+    related = [(opportunity, 2) for opportunity in category_only]
+    related.extend((opportunity, 3) for opportunity in skill_only)
+
+    if related:
+        scored_related = []
+        for opportunity, match_level in related:
+            score, reasons = score_opportunity(profile, opportunity)
+            scored_related.append(
+                {
+                    "opportunity": opportunity,
+                    "score": score,
+                    "reasons": reasons,
+                    "match_level": match_level,
+                }
+            )
+        scored_related.sort(key=lambda result: result["score"], reverse=True)
+        return scored_related[:limit]
+
+    if opportunities:
+        results = score_all(opportunities)[:limit]
+        for result in results:
+            result["match_level"] = 4
+        return results
 
     return []
 
