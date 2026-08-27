@@ -59,6 +59,8 @@ export type OpportunityRecommendation = {
   cv_benefit: string | null;
   link: string | null;
   hours_per_week: number | null;
+  institution_name: string | null;
+  institution_logo: string | null;
   match_score: number;
   reasons: string[];
 };
