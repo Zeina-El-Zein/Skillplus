@@ -1688,3 +1688,16 @@ Behavior:
    `current_skills` is never modified by this endpoint.
 5. Recommendations/opportunities are computed live in the response,
    same as `GET /roadmap` -- never cached.
+
+### Institution attribution in opportunity responses
+
+Student-facing opportunity responses now also include:
+
+- `institution_name`: name of the institution that posted the opportunity, or `null` for seeded/curated Skill+ opportunities.
+- `institution_logo`: logo URL/path for the posting institution, or `null` for seeded/curated Skill+ opportunities.
+
+These fields are returned by:
+
+- `GET /opportunities`
+- `GET /opportunities/{opportunity_id}`
+- `GET /student/{user_id}/recommendations`   

@@ -17,6 +17,7 @@ import {
   getStudentRecommendations,
   getStudentTasks,
   recordOpportunityView,
+  resolveApiAssetUrl,
 } from "../api";
 import FlowLayout from "../components/FlowLayout";
 import PageCard from "../components/PageCard";
@@ -300,6 +301,7 @@ function RecommendationCard({
   const matchScore = Math.max(0, Math.min(100, Math.round(opportunity.match_score || 0)));
   const applyLink = safeLink(opportunity.link);
   const reasons = opportunity.reasons || [];
+  const institutionLogoUrl = resolveApiAssetUrl(opportunity.institution_logo);
 
   return (
     <article className="rounded-2xl border border-blue-100 bg-white p-5 md:p-6 shadow-sm">
@@ -312,6 +314,27 @@ function RecommendationCard({
             <h2 className="text-xl font-extrabold text-gray-900 leading-snug">
               {opportunity.title}
             </h2>
+
+            <div className="mt-2 flex items-center gap-2 text-xs text-gray-500">
+              {opportunity.institution_name ? (
+                <>
+                  {institutionLogoUrl ? (
+                    <img
+                      src={institutionLogoUrl}
+                      alt=""
+                      className="w-5 h-5 rounded-full object-cover border border-gray-200 flex-shrink-0"
+                      onError={(event) => {
+                        event.currentTarget.style.display = "none";
+                      }}
+                    />
+                  ) : null}
+                  <span>Posted by {opportunity.institution_name}</span>
+                </>
+              ) : (
+                <span>Curated by Skill+</span>
+              )}
+            </div>
+
             <div className="flex flex-wrap gap-2 mt-3">
               <span className="rounded-full bg-blue-50 border border-blue-100 px-3 py-1 text-xs font-semibold text-blue-800">
                 {opportunity.category || "Opportunity"}

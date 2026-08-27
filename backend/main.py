@@ -1376,23 +1376,27 @@ def get_student_recommendations(
         opportunities = db.execute(
             text("""
                 SELECT
-                    id,
-                    title,
-                    category,
-                    suitable_major,
-                    suitable_year,
-                    difficulty,
-                    required_skills,
-                    skills_gained,
-                    deadline,
-                    estimated_time,
-                    cv_benefit,
-                    link,
-                    hours_per_week
-                FROM opportunities
-                WHERE deadline IS NULL
-                    OR deadline >= CURRENT_DATE
-                ORDER BY id
+                    o.id,
+                    o.title,
+                    o.category,
+                    o.suitable_major,
+                    o.suitable_year,
+                    o.difficulty,
+                    o.required_skills,
+                    o.skills_gained,
+                    o.deadline,
+                    o.estimated_time,
+                    o.cv_benefit,
+                    o.link,
+                    o.hours_per_week,
+                    inst.institution_name,
+                    inst.logo_url AS institution_logo
+                FROM opportunities o
+                LEFT JOIN institutions inst
+                    ON o.institution_id = inst.id
+                WHERE o.deadline IS NULL
+                    OR o.deadline >= CURRENT_DATE
+                ORDER BY o.id
             """)
         ).mappings().all()
 
@@ -1445,46 +1449,50 @@ def get_opportunities(
 ):
     query = """
         SELECT
-            id,
-            title,
-            category,
-            suitable_major,
-            suitable_year,
-            difficulty,
-            required_skills,
-            skills_gained,
-            deadline,
-            estimated_time,
-            cv_benefit,
-            link,
-            hours_per_week
-        FROM opportunities
+            o.id,
+            o.title,
+            o.category,
+            o.suitable_major,
+            o.suitable_year,
+            o.difficulty,
+            o.required_skills,
+            o.skills_gained,
+            o.deadline,
+            o.estimated_time,
+            o.cv_benefit,
+            o.link,
+            o.hours_per_week,
+            inst.institution_name,
+            inst.logo_url AS institution_logo
+        FROM opportunities o
+        LEFT JOIN institutions inst
+            ON o.institution_id = inst.id
     """
 
     conditions = [
-        "(deadline IS NULL OR deadline >= CURRENT_DATE)"
+        "(o.deadline IS NULL OR o.deadline >= CURRENT_DATE)"
     ]
 
     parameters = {}
 
     if category:
-        conditions.append("category = :category")
+        conditions.append("o.category = :category")
         parameters["category"] = category
 
     if difficulty:
-        conditions.append("difficulty = :difficulty")
+        conditions.append("o.difficulty = :difficulty")
         parameters["difficulty"] = difficulty
 
     if major:
         conditions.append(
-            "(suitable_major = :major OR suitable_major = 'Any')"
+            "(o.suitable_major = :major OR o.suitable_major = 'Any')"
         )
         parameters["major"] = major
 
     if conditions:
         query += " WHERE " + " AND ".join(conditions)
 
-    query += " ORDER BY id"
+    query += " ORDER BY o.id"
 
     opportunities = db.execute(
         text(query),
@@ -1505,24 +1513,28 @@ def get_opportunity_by_id(
     opportunity = db.execute(
         text("""
             SELECT
-                id,
-                title,
-                category,
-                suitable_major,
-                suitable_year,
-                difficulty,
-                required_skills,
-                skills_gained,
-                deadline,
-                estimated_time,
-                cv_benefit,
-                link,
-                hours_per_week
-            FROM opportunities
-            WHERE id = :opportunity_id
+                o.id,
+                o.title,
+                o.category,
+                o.suitable_major,
+                o.suitable_year,
+                o.difficulty,
+                o.required_skills,
+                o.skills_gained,
+                o.deadline,
+                o.estimated_time,
+                o.cv_benefit,
+                o.link,
+                o.hours_per_week,
+                inst.institution_name,
+                inst.logo_url AS institution_logo
+            FROM opportunities o
+            LEFT JOIN institutions inst
+                ON o.institution_id = inst.id
+            WHERE o.id = :opportunity_id
                 AND (
-                    deadline IS NULL
-                    OR deadline >= CURRENT_DATE
+                    o.deadline IS NULL
+                    OR o.deadline >= CURRENT_DATE
                 )
         """),
         {"opportunity_id": opportunity_id}
