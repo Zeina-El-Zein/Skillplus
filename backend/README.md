@@ -943,10 +943,8 @@ A valid roadmap contains:
 
 ```text
 summary
-milestones
-recommended_next_steps
+steps
 ```
-
 ## Rule-based fallback
 
 ```python
@@ -1217,33 +1215,6 @@ Example:
 POST /student/1/roadmap
 ```
 
-Example AI response:
-
-```json
-{
-  "user_id": 1,
-  "source": "ai",
-  "roadmap": {
-    "summary": "Focus on strengthening backend development skills and closing the gaps required by your strongest opportunity matches.",
-    "milestones": [
-      {
-        "title": "Strengthen version control skills",
-        "description": "Practice Git workflows used in collaborative software projects.",
-        "skills_to_learn": [
-          "Git"
-        ],
-        "suggested_timeframe": "2-3 weeks"
-      }
-    ],
-    "recommended_next_steps": [
-      "Apply to your strongest matching opportunities"
-    ]
-  }
-}
-```
-
-## AI-unavailable roadmap behavior
-
 If Gemini is unavailable or the API key is removed, the endpoint still returns:
 
 ```text
@@ -1258,31 +1229,10 @@ and uses:
 }
 ```
 
-Example:
 
-```json
-{
-  "user_id": 1,
-  "source": "fallback",
-  "roadmap": {
-    "summary": "A rules-based roadmap for a Beginner student, focused on closing skill gaps and preparing for top matched opportunities.",
-    "milestones": [
-      {
-        "title": "Strengthen your beginner foundations",
-        "description": "Review core concepts and close the most common skill gaps before applying to your top-matched opportunities.",
-        "skills_to_learn": [
-          "Git"
-        ],
-        "suggested_timeframe": "2-4 weeks"
-      }
-    ],
-    "recommended_next_steps": [
-      "Learn Git"
-    ]
-  }
-}
-```
-
+The response shape is documented in the **Roadmap Steps (Updated Structure)**
+section below. Roadmaps use `summary` and `steps`; the older `milestones` /
+`recommended_next_steps` fields are no longer returned.
 ---
 
 ## GET `/student/{user_id}/roadmap`
@@ -1297,31 +1247,9 @@ Example:
 GET /student/1/roadmap
 ```
 
-Example response:
-
-```json
-{
-  "user_id": 1,
-  "source": "ai",
-  "generated_at": "2026-08-14T10:24:04",
-  "roadmap": {
-    "summary": "Focus on strengthening backend development skills.",
-    "milestones": [
-      {
-        "title": "Strengthen version control skills",
-        "description": "Practice Git workflows.",
-        "skills_to_learn": [
-          "Git"
-        ],
-        "suggested_timeframe": "2-3 weeks"
-      }
-    ],
-    "recommended_next_steps": [
-      "Apply to your strongest matching opportunities"
-    ]
-  }
-}
-```
+The response shape is documented in the **Roadmap Steps (Updated Structure)**
+section below. Roadmaps use `summary` and `steps`; the older `milestones` /
+`recommended_next_steps` fields are no longer returned.
 
 If no cached roadmap exists:
 
@@ -1336,7 +1264,6 @@ Status:
 ```text
 404
 ```
-
 ---
 
 # Roadmap Caching
