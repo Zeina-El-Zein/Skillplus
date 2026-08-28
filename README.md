@@ -507,4 +507,4 @@ npm run test:run
 npm run build
 ~~~
 
-The frontend suite contains 31 passing tests. It covers both role flows, explicit login after signup, `has_profile` routing, session expiry, the six-link student navigation, results restoration after a fresh login, exact API payloads, image uploads, role guards, institution history/engagement data, To-Do integration, fallback behavior, roadmap caching/generation/error/animation states, and all previously implemented Member 5 behavior. The integrated backend suite contains 95 passing tests.
+The frontend suite contains 32 passing tests. It covers both role flows, explicit login after signup, `has_profile` routing, session expiry, the six-link student navigation, results restoration after a fresh login, exact API payloads, image uploads, role guards, institution history/engagement data, To-Do integration, fallback behavior, roadmap caching/generation/error/animation states, and all previously implemented Member 5 behavior. The integrated backend suite contains 96 passing tests.
