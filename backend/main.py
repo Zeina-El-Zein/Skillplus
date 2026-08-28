@@ -1550,7 +1550,6 @@ def get_opportunity_by_id(
 
 
 # ============================================================
-# FEATURE 4 / ISSUE #38
 # AI opportunity processing
 # ============================================================
 
@@ -1572,7 +1571,6 @@ def process_opportunity_description(
         )
 
     try:
-        # Build Mufaro's extraction prompt.
         prompt = build_extraction_prompt(description)
 
         # Send prompt to Gemini.
@@ -1621,7 +1619,6 @@ def process_opportunity_description(
 
 
 # ============================================================
-# FEATURE 4 / ISSUE #38
 # Save reviewed institution opportunity
 # ============================================================
 
@@ -1727,7 +1724,6 @@ def submit_institution_opportunity(
 
 
 # ============================================================
-# FEATURE 4 / ISSUE #38
 # Generate or regenerate a student roadmap
 # ============================================================
 @app.post("/student/{user_id}/roadmap")
@@ -1841,7 +1837,7 @@ def generate_student_roadmap(
 
         except Exception:
             # If Gemini fails, times out, or returns invalid JSON,
-            # use Mufaro's rule-based fallback instead of returning 500.
+            # use the rule-based fallback instead of returning 500.
             roadmap = fallback_roadmap(
                 profile_dict,
                 recommendations
@@ -1905,7 +1901,6 @@ def generate_student_roadmap(
 
 
 # ============================================================
-# FEATURE 4 / ISSUE #38
 # Get cached student roadmap
 # ============================================================
 
@@ -2031,7 +2026,6 @@ def get_cached_student_roadmap(
         )
 
 # ============================================================
-# FEATURE 4 / ISSUE #38
 # Link a roadmap step to a real student_tasks record
 # ============================================================
 

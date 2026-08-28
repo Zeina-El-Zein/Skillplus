@@ -1,5 +1,4 @@
-# Skill+ Frontend — Member 5 Role-Aware Flows
-
+# Skill+ Frontend
 ## Task
 
 Build and test both complete frontend journeys:
@@ -146,7 +145,7 @@ The page validates the token, requires at least 6 password characters, confirms 
 ```json
 {
   "user_id": 1,
-  "major": "CCE",
+  "major": "Computer and Communications Engineering",
   "year_of_study": 3,
   "courses_taken": ["Data Structures", "OOP", "Signals"],
   "current_skills": ["Python", "SQL"],
@@ -206,7 +205,7 @@ There is no request body. The logged-in user's ID is restored from local storage
       "deadline": "2026-12-01",
       "estimated_time": "3 months",
       "cv_benefit": "Real production backend experience.",
-      "link": "https://example.com/opportunities/backend-internship",
+      "link": "https://www.aub.edu.lb/msfea/cdc/Pages/students.aspx",
       "hours_per_week": 15,
       "match_score": 90,
       "reasons": ["Matches your major", "Uses your Python skill"]
