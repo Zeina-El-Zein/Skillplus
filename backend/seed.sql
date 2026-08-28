@@ -12,7 +12,7 @@
 -- Requires the hours_per_week column (see schema.sql):
 -- ALTER TABLE opportunities ADD COLUMN IF NOT EXISTS hours_per_week INTEGER;
 
-TRUNCATE TABLE opportunities RESTART IDENTITY;
+TRUNCATE TABLE opportunities RESTART IDENTITY CASCADE;
 
 INSERT INTO opportunities (
     title, category, suitable_major, suitable_year, difficulty,

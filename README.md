@@ -98,6 +98,8 @@ psql -U postgres -d skillplus -f backend/schema.sql
 psql -U postgres -d skillplus -f backend/seed.sql
 ```
 
+These commands will prompt for your PostgreSQL password, the one you chose when installing PostgreSQL.
+Use that same password in DATABASE_URL.
 `schema.sql` creates all tables. `seed.sql` loads 22 curated sample
 opportunities and can be re-run at any time to reset that data.
 
