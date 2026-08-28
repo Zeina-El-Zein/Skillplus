@@ -1,4 +1,205 @@
-## Student Level Classification (Feature 1 issue #12,13,14)
+# Skill+
+
+Skill+ is a web platform that helps university students turn a vague sense of
+"I should be building my CV" into a concrete, personalised plan.
+
+A student creates a profile describing their major, year of study, courses,
+skills, interests and available time. Skill+ classifies their experience level
+using explicit, testable rules, ranks real opportunities (internships,
+workshops, hackathons, competitions and courses) by how well each one fits that
+student, and generates a personalised roadmap that turns those matches into
+ordered, trackable steps.
+
+Institutions have their own accounts. They can paste an opportunity description
+in plain text, have it structured automatically, review and edit every field
+before publishing, and then see how many students viewed each opportunity and
+added it to their to-do list.
+
+**Repository:** https://github.com/Zeina-El-Zein/Skillplus  
+**Contact:** skillplus.teamm@gmail.com
+
+---
+
+## Team
+
+| Member | Area of responsibility |
+|---|---|
+| Zeina El-Zein | Database schema, opportunity data, institution dashboard and engagement analytics |
+| Sara Noun | Authentication, password reset, sessions, to-do system and task API |
+| Sara Chmayssani | Student profile API, recommendations, dashboard and persistence |
+| Mufaro Dube | Level classification, recommendation scoring, AI prompts and roadmap generation |
+| Abdul Kader | Frontend application, navigation, role-aware flows and UI |
+
+---
+
+## Tech stack
+
+- **Frontend:** React, TypeScript, Tailwind CSS, shadcn/ui, built with Vite
+- **Backend:** Python, FastAPI
+- **Database:** PostgreSQL
+- **AI:** Google Gemini via the Google GenAI Python SDK, with a rules-based
+  fallback so the application remains fully usable without an API key
+
+---
+
+## Main features
+
+- Student and institution accounts with routing based on roles and authorization
+- Password reset with hashed, single-use, expiring tokens
+- Student profile with level classification based on rules (Beginner/Intermediate/Advanced)
+- Opportunity recommendations with a transparent 100-point scoring formula and
+  a written reason for every match
+- Personalised roadmap with steps that link to real opportunities from the database
+- Shared to-do system: To Do / In Progress / Done, synchronised across the
+  dashboard, roadmap and to-do page
+- Institution portal: paste a description, review the structured draft, publish
+- Overall Institutional Metrics (views and to-do additions),
+  never exposing individual student activity
+
+---
+
+## Project structure
+
+```
+Code/
+├── backend/           FastAPI application, database schema and seed data
+│   ├── main.py        API endpoints
+│   ├── schema.sql     Database tables
+│   ├── seed.sql       Curated sample opportunities
+│   ├── scoring.py     Recommendation scoring
+│   ├── prompts.py     AI prompts, validation and rules-based fallback
+│   └── README.md      Full API documentation
+└── frontend/homepage/ React application
+    └── README.md      Frontend routes and flows
+```
+
+---
+
+## Getting started
+
+### Prerequisites
+
+- PostgreSQL 17 or later
+- Python 3.11 or later
+- Node.js 18 or later
+
+### 1. Clone the repository
+
+```bash
+git clone https://github.com/Zeina-El-Zein/Skillplus.git
+cd Skillplus
+```
+
+### 2. Create the database
+
+```bash
+psql -U postgres -c "CREATE DATABASE skillplus;"
+psql -U postgres -d skillplus -f backend/schema.sql
+psql -U postgres -d skillplus -f backend/seed.sql
+```
+
+`schema.sql` creates all tables. `seed.sql` loads 22 curated sample
+opportunities and can be re-run at any time to reset that data.
+
+### 3. Configure the backend
+
+Create a file named `.env` inside `backend/`:
+
+```env
+DATABASE_URL=postgresql://postgres:YOUR_PASSWORD@localhost:5432/skillplus
+GEMINI_API_KEY=YOUR_GEMINI_API_KEY
+```
+
+Only `DATABASE_URL` is required. Without a Gemini key the application still
+runs: roadmap generation and opportunity extraction fall back to the
+rules-based path and are labelled accordingly in the interface.
+
+A free Gemini key can be created at https://aistudio.google.com.
+
+Password-reset emails additionally require:
+
+```env
+SMTP_EMAIL=your-address@gmail.com
+SMTP_APP_PASSWORD=your-gmail-app-password
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+```
+
+Without these, the reset link is printed to the backend terminal instead.
+`.env` is excluded by `.gitignore` and must never be committed.
+
+### 4. Run the backend
+
+```bash
+cd backend
+pip install -r requirements.txt
+python -m uvicorn main:app --reload
+```
+
+The API runs at http://127.0.0.1:8000 and interactive documentation is
+available at http://127.0.0.1:8000/docs.
+
+### 5. Run the frontend
+
+In a second terminal:
+
+```bash
+cd frontend/homepage
+npm install
+npm run dev
+```
+
+The application runs at http://localhost:5173.
+
+---
+
+## Trying the application
+
+**As a student:** sign up, log in, complete the profile form, view the analysis
+of your level, browse ranked recommendations, add opportunities to your to-do
+list, and generate a roadmap.
+
+**As an institution:** sign up choosing the institution role, open the
+institution dashboard, paste an opportunity description, review and edit the
+structured draft, publish it, and view engagement statistics for your
+opportunities.
+
+---
+
+## Testing
+
+Backend:
+
+```bash
+cd backend
+python -m pytest -v
+```
+
+Frontend:
+
+```bash
+cd frontend/homepage
+npm run test:run
+```
+
+---
+
+## Documentation
+
+- [`backend/README.md`](backend/README.md) — full API reference, database
+  schema, scoring weights and shared value contracts
+- [`frontend/homepage/README.md`](frontend/homepage/README.md) — routes, flows
+  and frontend verification
+
+---
+
+## Implementation notes
+
+The sections below document individual features in more detail, including the
+classification rules, the recommendation endpoint and the frontend flows.
+
+
+## Student Level Classification
 
 The platform classifies a student's level using explicit, testable rules
 based on `year`, `courses` (number of courses taken), and `skills`
@@ -27,7 +228,7 @@ profile from the `students` table (via `user_id`), classifies it, and
 writes the result into the `level` column on that row (schema.sql
 already has this column reserved for it).
 
-This settles Issue 8's open question: analysis is a **separate call**
+analysis is a **separate call**
 from `POST /student-profile`, triggered by hitting this endpoint
 afterward (e.g. from the frontend, right after profile save succeeds).
 
@@ -88,16 +289,10 @@ The `students.user_id` column is unique, and `POST /student-profile`
 uses an upsert (`INSERT ... ON CONFLICT (user_id) DO UPDATE`). Submitting
 the form again updates the existing profile instead of creating a duplicate.
 
-### Known open questions (raise with team)
-
-- The design doc lists 4 levels (Beginner, Intermediate, Ready-for-internships-with-gaps,
-  Not-yet-ready); this implementation currently covers the 3 from Issue 1
-  (Beginner/Intermediate/Advanced) as a placeholder.
-- Fallback case (rule 4 above) rounds up to Intermediate according to the current team decision.
 
 ---
 
-## Recommendation Endpoint (Feature 3 Issue #29)
+## Recommendation Endpoint 
 
 The recommendation endpoint compares one analyzed student profile with all active opportunities in the database.
 
@@ -162,7 +357,7 @@ GET /student/1/recommendations
   "recommendations": [
     {
       "id": 1,
-      "title": "Python Beginner Bootcamp",
+      "title": "Python for Engineers Bootcamp",
       "category": "Bootcamp",
       "suitable_major": "Any",
       "suitable_year": 1,
@@ -170,13 +365,15 @@ GET /student/1/recommendations
       "required_skills": [],
       "skills_gained": [
         "Python",
-        "Problem Solving"
+        "Programming Basics"
       ],
-      "deadline": null,
-      "estimated_time": null,
-      "cv_benefit": "Adds programming foundation to CV",
-      "link": "https://example.com/1",
-      "hours_per_week": null,
+      "deadline": "2026-10-15",
+      "estimated_time": "6 weeks",
+      "cv_benefit": "First programming credential - the entry point for every technical role.",
+      "link": "https://www.freecodecamp.org/learn",
+      "hours_per_week": 6,
+      "institution_name": null,
+      "institution_logo": null,
       "match_score": 40,
       "reasons": [
         "Open to all majors",
@@ -255,9 +452,9 @@ Verified cases:
 
 ---
 
-## Member 5 Frontend (Feature 4 Issue #40 and Issue #55)
+## Frontend
 
-The frontend now supports both roles returned by authentication.
+The frontend supports both roles returned by authentication.
 
 ### Student flow
 
